@@ -12,12 +12,21 @@ exports.handler = async (event) => {
   }
 
   try {
+    const key = process.env.ANTHROPIC_KEY;
+    if (!key) {
+      return {
+        statusCode: 500,
+        headers: { 'Access-Control-Allow-Origin': '*' },
+        body: JSON.stringify({ error: 'No API key found in environment' })
+      };
+    }
+
     const body = JSON.parse(event.body);
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_KEY,
+        'x-api-key': key,
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify(body)
@@ -32,7 +41,8 @@ exports.handler = async (event) => {
     return {
       statusCode: 500,
       headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: err.message })
+      body: JSON.stringify({ error: err.message, stack: err.stack })
     };
   }
+};  }
 };
