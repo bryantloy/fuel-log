@@ -866,6 +866,7 @@ async function post(body){
   let data={};
   try{data=await res.json()}catch(e){throw new Error('Server sent an unreadable response (HTTP '+res.status+')')}
   if(!res.ok)throw new Error(data.error||('Request failed (HTTP '+res.status+')'));
+  if(body&&body.mode==='workout')return data;
   if(!data.items||!data.items.length)throw new Error(data.note||'Nothing recognizable found. Try a clearer photo or type it in.');
   return data;
 }
