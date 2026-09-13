@@ -869,7 +869,7 @@ document.getElementById('runShot').addEventListener('change',async e=>{
   e.target.value='';
   busy('Reading your run…');hideErr();
   try{
-    const b64=await compress(f,1400,.85);
+    const {base64:b64}=await compress(f,1400,.85);
     const r=await post({image:b64,mediaType:'image/jpeg',mode:'run'});
     unbusy();
     if(!r.run){showErr(r.note||'Could not read that screenshot');return}
@@ -974,7 +974,7 @@ document.getElementById('planShot').addEventListener('change',async e=>{
   if(!f)return; e.target.value='';
   busy('Reading your plan…');hideErr();
   try{
-    const b64=await compress(f,1400,.85);
+    const {base64:b64}=await compress(f,1400,.85);
     const r=await post({image:b64,mediaType:'image/jpeg',mode:'plan'});
     unbusy();
     if(!r.plan){showErr(r.note||'Could not read that plan');return}
