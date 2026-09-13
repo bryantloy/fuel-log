@@ -89,56 +89,45 @@ function sanitize(parsed) {
   return { items, note: String(parsed.note || "").slice(0, 220) };
 }
 
-const RUN_PROMPT = `You are reading a screenshot from a running app (Strava, Garmin, Runna or similar).
-Extract the activity summary. Return ONLY JSON, no prose, no markdown fences:
-{"activity":"Run","distance":5.28,"duration":"45:20","pace":"8:35","kcal":614,"hr":155,"note":"short remark"}
+const WORKOUT_PROMPT = `You are reading a screenshot from a running or training app (Strava, Garmin, Runna, TrainingPeaks or similar).
+
+First decide whether it shows a COMPLETED activity or an UPCOMING/PLANNED session.
+Completed activities show results: elapsed or moving time, average pace, calories, heart rate.
+Planned sessions show a prescription: a scheduled workout, target paces, "today's session", no results.
+
+Return ONLY JSON, no prose, no markdown fences:
+{"state":"completed","activity":"Run","distance":5.28,"duration":"45:20","pace":"8:35","kcal":614,"hr":155,"kind":"easy"}
+or
+{"state":"planned","activity":"Run","distance":12,"duration":"","pace":"","kcal":0,"hr":0,"kind":"long"}
+
 Rules:
-- distance in miles as a number. If shown in km, convert to miles.
-- duration as a string like "45:20" or "1:12:04". Use moving time if both are shown.
-- pace as a per-mile string like "8:35".
-- kcal is the calorie number shown. If absent, use 0.
-- hr is average heart rate. If absent, use 0.
-- activity is the sport type: Run, Ride, Walk, Swim, Workout.
-- If this is not a workout screenshot, return {"activity":"","distance":0,"duration":"","pace":"","kcal":0,"hr":0,"note":"Not a workout screenshot"}.`;
+- distance in miles as a number, total including warm-up and cool-down. Convert from km if needed.
+- kind is one of: easy, long, quality, recovery. Intervals, tempo, threshold, speed, fartlek and race-pace sessions are all "quality". Runs of 11 miles or more are "long" unless clearly a quality session. Very short slow runs are "recovery".
+- duration like "45:20" or "1:12:04"; prefer moving time. Empty string if not shown.
+- pace as per-mile like "8:35". Empty string if not shown.
+- kcal and hr are numbers; use 0 if not shown.
+- Ignore any coaching commentary, AI summaries or motivational text on the screen. Never copy that text into your answer.
+- If it is not a workout screenshot at all, return {"state":"","activity":"","distance":0,"duration":"","pace":"","kcal":0,"hr":0,"kind":""}.`;
 
-const PLAN_PROMPT = `You are reading a screenshot of an UPCOMING / PLANNED running workout from a training-plan app (Runna, Garmin, TrainingPeaks or similar).
-Extract what the athlete is scheduled to do. Return ONLY JSON, no prose, no markdown fences:
-{"activity":"Run","distance":12,"kind":"long","note":"short remark"}
-Rules:
-- distance is total planned miles as a number, including warm-up and cool-down. If shown in km, convert to miles. If the session is given only in time, estimate miles at 8:30/mi.
-- kind is one of: easy, long, quality, recovery. Intervals, tempo, threshold, speed and race-pace sessions are all "quality".
-- If no distance can be determined, return distance 0.
-- If this is not a planned workout screenshot, return {"activity":"","distance":0,"kind":"","note":"Not a planned workout"}.`;
-
-function sanitizePlan(parsed) {
-  const n = Number(parsed.distance);
-  const kinds = ["easy", "long", "quality", "recovery"];
-  return {
-    plan: {
-      activity: String(parsed.activity || "").slice(0, 20),
-      distance: Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0,
-      kind: kinds.includes(parsed.kind) ? parsed.kind : "easy",
-    },
-    note: String(parsed.note || "").slice(0, 220),
-  };
-}
-
-function sanitizeRun(parsed) {
+function sanitizeWorkout(parsed) {
   const num = (v) => {
     const n = Number(v);
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
   const str = (v, n) => String(v || "").slice(0, n);
+  const kinds = ["easy", "long", "quality", "recovery"];
+  const state = parsed.state === "planned" ? "planned" : parsed.state === "completed" ? "completed" : "";
   return {
-    run: {
+    workout: {
+      state,
       activity: str(parsed.activity, 20),
       distance: Math.round(num(parsed.distance) * 100) / 100,
       duration: str(parsed.duration, 12),
       pace: str(parsed.pace, 12),
       kcal: Math.round(num(parsed.kcal)),
       hr: Math.round(num(parsed.hr)),
+      kind: kinds.includes(parsed.kind) ? parsed.kind : "easy",
     },
-    note: str(parsed.note, 220),
   };
 }
 
@@ -195,7 +184,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: media, data: body.image } },
-            { type: "text", text: body.mode === "run" ? RUN_PROMPT : body.mode === "plan" ? PLAN_PROMPT : PHOTO_PROMPT + (body.hint ? `\n\nUser hint about this meal: ${body.hint}` : "") },
+            { type: "text", text: body.mode === "workout" ? WORKOUT_PROMPT : PHOTO_PROMPT + (body.hint ? `\n\nUser hint about this meal: ${body.hint}` : "") },
           ],
         },
       ];
@@ -207,18 +196,10 @@ export default async function handler(req, res) {
 
     const { data } = await callAnthropic(key, { max_tokens: 1200, messages });
 
-    if (body.mode === "plan") {
-      const r = sanitizePlan(extractJson(data));
-      if (!r.plan.distance) {
-        return res.status(200).json({ plan: null, note: r.note || "Could not read a planned distance." });
-      }
-      return res.status(200).json(r);
-    }
-
-    if (body.mode === "run") {
-      const r = sanitizeRun(extractJson(data));
-      if (!r.run.activity) {
-        return res.status(200).json({ run: null, note: "That does not look like a workout screenshot." });
+    if (body.mode === "workout") {
+      const r = sanitizeWorkout(extractJson(data));
+      if (!r.workout.state || !r.workout.distance) {
+        return res.status(200).json({ workout: null, note: "Could not read a workout from that screenshot." });
       }
       return res.status(200).json(r);
     }
