@@ -89,6 +89,59 @@ function sanitize(parsed) {
   return { items, note: String(parsed.note || "").slice(0, 220) };
 }
 
+const RUN_PROMPT = `You are reading a screenshot from a running app (Strava, Garmin, Runna or similar).
+Extract the activity summary. Return ONLY JSON, no prose, no markdown fences:
+{"activity":"Run","distance":5.28,"duration":"45:20","pace":"8:35","kcal":614,"hr":155,"note":"short remark"}
+Rules:
+- distance in miles as a number. If shown in km, convert to miles.
+- duration as a string like "45:20" or "1:12:04". Use moving time if both are shown.
+- pace as a per-mile string like "8:35".
+- kcal is the calorie number shown. If absent, use 0.
+- hr is average heart rate. If absent, use 0.
+- activity is the sport type: Run, Ride, Walk, Swim, Workout.
+- If this is not a workout screenshot, return {"activity":"","distance":0,"duration":"","pace":"","kcal":0,"hr":0,"note":"Not a workout screenshot"}.`;
+
+const PLAN_PROMPT = `You are reading a screenshot of an UPCOMING / PLANNED running workout from a training-plan app (Runna, Garmin, TrainingPeaks or similar).
+Extract what the athlete is scheduled to do. Return ONLY JSON, no prose, no markdown fences:
+{"activity":"Run","distance":12,"kind":"long","note":"short remark"}
+Rules:
+- distance is total planned miles as a number, including warm-up and cool-down. If shown in km, convert to miles. If the session is given only in time, estimate miles at 8:30/mi.
+- kind is one of: easy, long, quality, recovery. Intervals, tempo, threshold, speed and race-pace sessions are all "quality".
+- If no distance can be determined, return distance 0.
+- If this is not a planned workout screenshot, return {"activity":"","distance":0,"kind":"","note":"Not a planned workout"}.`;
+
+function sanitizePlan(parsed) {
+  const n = Number(parsed.distance);
+  const kinds = ["easy", "long", "quality", "recovery"];
+  return {
+    plan: {
+      activity: String(parsed.activity || "").slice(0, 20),
+      distance: Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0,
+      kind: kinds.includes(parsed.kind) ? parsed.kind : "easy",
+    },
+    note: String(parsed.note || "").slice(0, 220),
+  };
+}
+
+function sanitizeRun(parsed) {
+  const num = (v) => {
+    const n = Number(v);
+    return Number.isFinite(n) && n >= 0 ? n : 0;
+  };
+  const str = (v, n) => String(v || "").slice(0, n);
+  return {
+    run: {
+      activity: str(parsed.activity, 20),
+      distance: Math.round(num(parsed.distance) * 100) / 100,
+      duration: str(parsed.duration, 12),
+      pace: str(parsed.pace, 12),
+      kcal: Math.round(num(parsed.kcal)),
+      hr: Math.round(num(parsed.hr)),
+    },
+    note: str(parsed.note, 220),
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Headers", "content-type");
@@ -142,7 +195,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: media, data: body.image } },
-            { type: "text", text: PHOTO_PROMPT + (body.hint ? `\n\nUser hint about this meal: ${body.hint}` : "") },
+            { type: "text", text: body.mode === "run" ? RUN_PROMPT : body.mode === "plan" ? PLAN_PROMPT : PHOTO_PROMPT + (body.hint ? `\n\nUser hint about this meal: ${body.hint}` : "") },
           ],
         },
       ];
@@ -153,6 +206,23 @@ export default async function handler(req, res) {
     }
 
     const { data } = await callAnthropic(key, { max_tokens: 1200, messages });
+
+    if (body.mode === "plan") {
+      const r = sanitizePlan(extractJson(data));
+      if (!r.plan.distance) {
+        return res.status(200).json({ plan: null, note: r.note || "Could not read a planned distance." });
+      }
+      return res.status(200).json(r);
+    }
+
+    if (body.mode === "run") {
+      const r = sanitizeRun(extractJson(data));
+      if (!r.run.activity) {
+        return res.status(200).json({ run: null, note: "That does not look like a workout screenshot." });
+      }
+      return res.status(200).json(r);
+    }
+
     const parsed = sanitize(extractJson(data));
 
     if (!parsed.items.length) {
