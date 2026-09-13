@@ -96,18 +96,22 @@ Completed activities show results: elapsed or moving time, average pace, calorie
 Planned sessions show a prescription: a scheduled workout, target paces, "today's session", no results.
 
 Return ONLY JSON, no prose, no markdown fences:
-{"state":"completed","activity":"Run","distance":5.28,"duration":"45:20","pace":"8:35","kcal":614,"hr":155,"kind":"easy"}
+{"state":"completed","activity":"Run","distance":5.28,"duration":"45:20","minutes":45,"pace":"8:35","kcal":614,"hr":155,"kind":"easy"}
 or
-{"state":"planned","activity":"Run","distance":12,"duration":"","pace":"","kcal":0,"hr":0,"kind":"long"}
+{"state":"planned","activity":"Run","distance":12,"duration":"","minutes":0,"pace":"","kcal":0,"hr":0,"kind":"long"}
+or for a gym session
+{"state":"completed","activity":"Strength","distance":0,"duration":"1:26:17","minutes":86,"pace":"","kcal":508,"hr":104,"kind":"strength"}
 
 Rules:
 - distance in miles as a number, total including warm-up and cool-down. Convert from km if needed.
-- kind is one of: easy, long, quality, recovery. Intervals, tempo, threshold, speed, fartlek and race-pace sessions are all "quality". Runs of 11 miles or more are "long" unless clearly a quality session. Very short slow runs are "recovery".
+- activity is the sport: Run, Ride, Walk, Swim, Strength. Weight training, lifting, gym sessions and strength workouts are all "Strength".
+- minutes is total elapsed or moving time in whole minutes as a number. Required for strength sessions, where there is no distance.
+- kind is one of: easy, long, quality, recovery, strength. Use "strength" for any weight-training session. Intervals, tempo, threshold, speed, fartlek and race-pace sessions are all "quality". Runs of 11 miles or more are "long" unless clearly a quality session. Very short slow runs are "recovery".
 - duration like "45:20" or "1:12:04"; prefer moving time. Empty string if not shown.
 - pace as per-mile like "8:35". Empty string if not shown.
 - kcal and hr are numbers; use 0 if not shown.
 - Ignore any coaching commentary, AI summaries or motivational text on the screen. Never copy that text into your answer.
-- If it is not a workout screenshot at all, return {"state":"","activity":"","distance":0,"duration":"","pace":"","kcal":0,"hr":0,"kind":""}.`;
+- If it is not a workout screenshot at all, return {"state":"","activity":"","distance":0,"duration":"","minutes":0,"pace":"","kcal":0,"hr":0,"kind":""}.`;
 
 function sanitizeWorkout(parsed) {
   const num = (v) => {
@@ -115,13 +119,14 @@ function sanitizeWorkout(parsed) {
     return Number.isFinite(n) && n >= 0 ? n : 0;
   };
   const str = (v, n) => String(v || "").slice(0, n);
-  const kinds = ["easy", "long", "quality", "recovery"];
+  const kinds = ["easy", "long", "quality", "recovery", "strength"];
   const state = parsed.state === "planned" ? "planned" : parsed.state === "completed" ? "completed" : "";
   return {
     workout: {
       state,
       activity: str(parsed.activity, 20),
       distance: Math.round(num(parsed.distance) * 100) / 100,
+      minutes: Math.round(num(parsed.minutes)),
       duration: str(parsed.duration, 12),
       pace: str(parsed.pace, 12),
       kcal: Math.round(num(parsed.kcal)),
@@ -129,6 +134,31 @@ function sanitizeWorkout(parsed) {
       kind: kinds.includes(parsed.kind) ? parsed.kind : "easy",
     },
   };
+}
+
+function pantryBlock(pantry) {
+  if (!Array.isArray(pantry) || !pantry.length) return "";
+  const lines = pantry.slice(0, 40).map((f) => {
+    const n = String(f.name || "").slice(0, 60);
+    const p = Number(f.protein) || 0, c = Number(f.carbs) || 0;
+    const ft = Number(f.fat) || 0, k = Number(f.kcal) || 0;
+    const na = Number(f.sodium) || 0;
+    const portion = f.portion ? ` (${String(f.portion).slice(0, 40)})` : "";
+    return `- ${n}${portion}: ${p}g protein, ${c}g carbs, ${ft}g fat, ${k} kcal, ${na}mg sodium`;
+  });
+  return `
+
+THIS USER'S PANTRY — brands and products they keep at home:
+${lines.join("\n")}
+
+When a food in the photo plausibly matches one of these pantry items, use THAT item's
+name and macros rather than a generic or mass-market equivalent. For example, if the
+pantry lists a specific brand of macaroni and cheese, assume home-cooked mac and cheese
+is that brand, not a generic box. Scale the pantry macros to the portion you can see.
+
+Do NOT apply pantry items when the photo is clearly from a restaurant, bar, cafeteria,
+takeout container, or someone else's kitchen — estimate normally in those cases. Also
+ignore the pantry if the user's hint names a different product.`;
 }
 
 export default async function handler(req, res) {
@@ -184,7 +214,7 @@ export default async function handler(req, res) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: media, data: body.image } },
-            { type: "text", text: body.mode === "workout" ? WORKOUT_PROMPT : PHOTO_PROMPT + (body.hint ? `\n\nUser hint about this meal: ${body.hint}` : "") },
+            { type: "text", text: body.mode === "workout" ? WORKOUT_PROMPT : PHOTO_PROMPT + pantryBlock(body.pantry) + (body.hint ? `\n\nUser hint about this meal: ${body.hint}` : "") },
           ],
         },
       ];
@@ -198,7 +228,7 @@ export default async function handler(req, res) {
 
     if (body.mode === "workout") {
       const r = sanitizeWorkout(extractJson(data));
-      if (!r.workout.state || !r.workout.distance) {
+      if (!r.workout.state || (!r.workout.distance && !r.workout.minutes)) {
         return res.status(200).json({ workout: null, note: "Could not read a workout from that screenshot." });
       }
       return res.status(200).json(r);
