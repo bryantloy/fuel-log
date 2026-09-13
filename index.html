@@ -515,7 +515,9 @@ const PROGRAM=[
    ['Chest-Supported Row','3×10-12','90s','Chest stays on pad'],
    ['Cable Fly','3×15','60s','Stretch at the bottom'],
    ['Neutral-Grip Lat Pulldown','3×12','60s','Drive elbows to hips'],
-   ['Face Pull','3×15','60s','Shoulder health — do not skip']
+   ['Face Pull','3×15','60s','Shoulder health — do not skip'],
+   ['Ab Wheel Rollout','3×10','60s','Anti-extension — ribs down, no sag'],
+   ['Side Plank','3×40s ea','45s','Anti-lateral flexion — stack the hips']
   ],
   home:[
    ['DB Floor Press','4×10','2 min','45s — floor limits range, that is fine'],
@@ -524,7 +526,9 @@ const PROGRAM=[
    ['Single-Arm DB Row','4×12 ea','90s','Knee on bench, full stretch'],
    ['DB Fly on Bench','3×15','60s','Light, big arc'],
    ['Band Pull-Apart','3×20','45s','Rear delts'],
-   ['Band Face Pull','3×15','60s','Anchor band over the pull-up bar']
+   ['Band Face Pull','3×15','60s','Anchor band over the pull-up bar'],
+   ['Ab Wheel / Plank Walkout','3×10','60s','Anti-extension — ribs down'],
+   ['Side Plank','3×40s ea','45s','Stack the hips, do not sink']
   ]},
  {id:'d2',name:'Legs',short:'LEGS',icon:'▲',
   gym:[
@@ -533,7 +537,9 @@ const PROGRAM=[
    ['Leg Press','3×12','90s','Do not lock out'],
    ['Walking Lunge','3×12 ea','90s','Torso upright'],
    ['Lying Leg Curl','3×12','60s','Hamstring insurance for the calf'],
-   ['Standing Calf Raise','4×15','60s','Pause at the top']
+   ['Standing Calf Raise','4×15','60s','Pause at the top'],
+   ['Dead Bug','3×10 ea','45s','Low back glued to the floor'],
+   ['Suitcase Carry','3×40 yd ea','60s','One heavy DB — do not lean']
   ],
   home:[
    ['Bulgarian Split Squat','4×10 ea','2 min','Rear foot on bench, 45s in hand'],
@@ -541,7 +547,9 @@ const PROGRAM=[
    ['1.5-Rep Goblet Squat','3×10','90s','45 KB. Down, half up, down, full up'],
    ['Bench Step-Up','3×12 ea','90s','Drive through the heel'],
    ['KB Swing','4×15','60s','45 KB, hips not arms'],
-   ['Single-Leg Calf Raise','3×20 ea','45s','Off a step if you have one']
+   ['Single-Leg Calf Raise','3×20 ea','45s','Off a step if you have one'],
+   ['Dead Bug','3×10 ea','45s','Low back glued to the floor'],
+   ['KB Suitcase Carry','3×40 steps ea','60s','45 KB, stay square']
   ]},
  {id:'d3',name:'Shoulders, Arms & Core',short:'SHLDR/ARMS',icon:'◆',
   gym:[
@@ -573,7 +581,9 @@ const PROGRAM=[
    ['Seated Leg Curl','3×12','90s','Eccentric focus'],
    ['Back Extension','3×15','60s','Glutes, not lower back'],
    ['Cable Pull-Through','3×15','60s','Hinge pattern, light'],
-   ['Single-Leg Calf Raise','3×15 ea','45s','Running insurance']
+   ['Single-Leg Calf Raise','3×15 ea','45s','Running insurance'],
+   ['Hanging Leg Raise','3×12','60s','No swing — control the lower'],
+   ['Copenhagen Plank','3×20s ea','45s','Adductors — the muscle runners neglect']
   ],
   home:[
    ['KB Deadlift','4×8','2 min','45 KB between feet, hinge hard'],
@@ -581,7 +591,9 @@ const PROGRAM=[
    ['Single-Leg RDL','3×10 ea','90s','Heavier than Day 2 — slower'],
    ['Nordic Negative','3×6','90s','Anchor feet under bench, 5-sec lower'],
    ['Glute Bridge March','3×12 ea','60s','Hips level throughout'],
-   ['KB Swing','4×20','60s','Finish the day here']
+   ['KB Swing','4×20','60s','Finish the day here'],
+   ['Hanging Leg Raise','3×12','60s','Off the pull-up bar, no swing'],
+   ['Copenhagen Plank','3×20s ea','45s','Top leg on the bench']
   ]}
 ];
 
@@ -620,7 +632,8 @@ const KIND={
   recovery:{carb:0.70,epoc:1.00,label:'recovery'},
   easy:    {carb:0.75,epoc:1.00,label:'easy'},
   long:    {carb:0.90,epoc:1.03,label:'long'},
-  quality: {carb:0.95,epoc:1.08,label:'quality'}
+  quality: {carb:0.95,epoc:1.08,label:'quality'},
+  strength:{carb:0.65,epoc:1.05,label:'strength'}
 };
 function kindOf(k){
   const d=day(k);
@@ -631,7 +644,7 @@ function kindOf(k){
 function setKind(k){const d=day(curDate);d.kind=k;if(d.planned)d.planned.kind=k;save();render()}
 function calPerMile(mode){return Math.round(wt()*(mode==='walk'?0.30:0.63))}
 function runBurn(mi,mode){return Math.round(mi*calPerMile(mode))}
-function liftBurn(min){return Math.round(min*4*3.5*(wt()/2.205)/200)}
+function liftBurn(min){return Math.round(min*3.5*3.5*(wt()/2.205)/200)}
 
 /* ═══════════ WORKOUT SCREENSHOT ═══════════ */
 document.getElementById('runShot').addEventListener('change',async e=>{
@@ -643,8 +656,11 @@ document.getElementById('runShot').addEventListener('change',async e=>{
     const r=await post({image:b64,mediaType:'image/jpeg',mode:'workout'});
     unbusy();
     if(!r.workout){showErr(r.note||'Could not read that screenshot');return}
-    const W=r.workout, walk=/walk/i.test(W.activity);
-    const cal=W.distance?runBurn(W.distance,walk?'walk':'run'):0;
+    const W=r.workout;
+    const strength=/strength|weight|lift|gym/i.test(W.activity)||W.kind==='strength';
+    const walk=/walk/i.test(W.activity);
+    const cal=strength?liftBurn(W.minutes||0)
+                      :(W.distance?runBurn(W.distance,walk?'walk':'run'):0);
     const d=day(curDate);
     d.kind=W.kind;
     if(W.state==='planned'){
@@ -658,7 +674,7 @@ document.getElementById('runShot').addEventListener('change',async e=>{
     if(W.duration)bits.push(W.duration);
     if(W.pace)bits.push(W.pace+'/mi');
     if(W.hr)bits.push(W.hr+' bpm');
-    const type=/ride|bike/i.test(W.activity)?'other':'run';
+    const type=strength?'lift':(/ride|bike/i.test(W.activity)?'other':'run');
     d.workouts.push({type,desc:(W.activity||'Run')+' — '+bits.join(' · '),cal});
     delete d.planned;
     save();render();
@@ -1021,7 +1037,7 @@ function wchips(){
   const ks=document.getElementById('kindSel');
   if(ks){
     const cur=kindOf(curDate);
-    ks.innerHTML=['recovery','easy','long','quality'].map(k=>
+    ks.innerHTML=['recovery','easy','long','quality','strength'].map(k=>
       '<button class="wtb'+(k===cur?' run':'')+'" onclick="setKind(\''+k+'\')">'+
       k.charAt(0).toUpperCase()+k.slice(1)+'</button>').join('');
   }
