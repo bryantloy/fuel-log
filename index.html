@@ -144,12 +144,21 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 .wi input{background:var(--surf2);border:1px solid var(--bd2);border-radius:8px;padding:10px;color:var(--txt);font-size:.82rem;min-width:0}
 .wi input:focus{border-color:var(--pro)}
 .wadd{background:var(--pro);border:none;border-radius:8px;padding:10px 14px;color:#000;font-weight:700;font-size:.78rem;white-space:nowrap}
+.favs{display:flex;flex-wrap:wrap;gap:7px}
+.fav{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 13px;border-radius:12px;background:var(--surf);border:1px solid var(--bd2);color:var(--txt);font-family:'DM Sans',sans-serif;text-align:left;position:relative}
+.fav:active{border-color:var(--pro);background:var(--surf2)}
+.favn{font-size:.76rem;font-weight:600;line-height:1.2}
+.favm{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--mut2);letter-spacing:.3px}
+.favx{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--bad);border:none;color:#fff;font-size:.6rem;display:none;align-items:center;justify-content:center;padding:0}
+.favs.editing .favx{display:flex}
+.favedit{background:none;border:none;color:var(--mut2);font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:1px;padding:0}
+.favedit.on{color:var(--pro)}
 .dsel{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
 .dbtn{padding:11px 9px;border-radius:11px;background:var(--surf);border:1px solid var(--bd2);color:var(--mut);text-align:left;font-family:'DM Sans',sans-serif}
 .dbtn.on{border-color:var(--pro);background:var(--surf2);color:var(--txt)}
 .dbtn .dn{font-size:.78rem;font-weight:700;line-height:1.15}
 .dbtn .dp{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--mut2);margin-top:3px;letter-spacing:.4px}
-.loc{display:flex;gap:0;border:1px solid var(--bd2);border-radius:11px;overflow:hidden;margin-bottom:14px}
+.loc{display:flex;border:1px solid var(--bd2);border-radius:11px;overflow:hidden;margin-bottom:14px}
 .loc button{flex:1;padding:11px;background:transparent;border:none;color:var(--mut2);font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:1.5px}
 .loc button.on{background:var(--pro);color:#0a0a0a;font-weight:600}
 .ex{display:flex;align-items:flex-start;gap:12px;padding:12px 13px;border-radius:11px;border:1px solid transparent;margin-bottom:5px}
@@ -164,15 +173,6 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 .lfill{height:100%;background:var(--pro);border-radius:2px;transition:width .35s}
 .lhead{display:flex;align-items:baseline;justify-content:space-between;margin-top:14px}
 .lpct{font-size:1.7rem;font-weight:800;color:var(--pro);line-height:1}
-.favs{display:flex;flex-wrap:wrap;gap:7px}
-.fav{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 13px;border-radius:12px;background:var(--surf);border:1px solid var(--bd2);color:var(--txt);font-family:'DM Sans',sans-serif;text-align:left;position:relative}
-.fav:active{border-color:var(--pro);background:var(--surf2)}
-.favn{font-size:.76rem;font-weight:600;line-height:1.2}
-.favm{font-family:'DM Mono',monospace;font-size:.58rem;color:var(--mut2);letter-spacing:.3px}
-.favx{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--bad);border:none;color:#fff;font-size:.6rem;display:none;align-items:center;justify-content:center;padding:0}
-.favs.editing .favx{display:flex}
-.favedit{background:none;border:none;color:var(--mut2);font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:1px;padding:0}
-.favedit.on{color:var(--pro)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chip{display:flex;align-items:center;gap:5px;padding:7px 12px;border-radius:20px;font-size:.75rem;font-weight:500}
 .chip.run{background:rgba(91,156,246,.12);border:1px solid rgba(91,156,246,.3);color:var(--run)}
@@ -335,12 +335,10 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         <div class="sh">
           <div class="st">WORKOUTS</div>
           <div style="display:flex;gap:6px">
-            <button class="sb2" onclick="document.getElementById('planShot').click()">📋 Plan</button>
-            <button class="sb2" onclick="document.getElementById('runShot').click()">📸 Strava</button>
+            <button class="sb2" onclick="document.getElementById('runShot').click()">📸 Screenshot</button>
             <button class="sb2" onclick="toggleWF()">＋ Log</button>
           </div>
           <input type="file" accept="image/*" id="runShot" style="display:none">
-          <input type="file" accept="image/*" id="planShot" style="display:none">
         </div>
         <div class="wt" id="kindSel" style="margin-bottom:10px"></div>
         <div class="wf" id="wfBox">
@@ -507,39 +505,6 @@ let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
 function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
-function favs(){if(!Array.isArray(state.favs))state.favs=DEFAULT_FAVS.map(f=>({...f}));return state.favs}
-let favEditing=false;
-function toggleFavEdit(){favEditing=!favEditing;
-  document.getElementById('favBox').classList.toggle('editing',favEditing);
-  const b=document.getElementById('favEditBtn');b.textContent=favEditing?'DONE':'EDIT';b.classList.toggle('on',favEditing)}
-function renderFavs(){
-  const box=document.getElementById('favBox'),list=favs();
-  if(!list.length){box.innerHTML='<div class="empty">No quick items yet — log something, then tap ★ to save it here</div>';return}
-  box.innerHTML=list.map((f,i)=>'<button class="fav" onclick="'+(favEditing?'':'addFav('+i+')')+'">'+
-    '<span class="favn">'+esc(f.name)+'</span>'+
-    '<span class="favm">'+f.protein+'P · '+f.carbs+'C · '+f.fat+'F · '+f.kcal+'k</span>'+
-    '<button class="favx" onclick="event.stopPropagation();rmFav('+i+')">✕</button></button>').join('');
-}
-function addFav(i){
-  const f=favs()[i];if(!f)return;
-  const meal=document.getElementById('mealSel').value;
-  day(curDate).foods.push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal,meal});
-  save();render();toast(f.name+' → '+meal);
-}
-function rmFav(i){favs().splice(i,1);save();renderFavs();toast('Removed from quick add')}
-function favFromFood(i){
-  const f=day(curDate).foods[i];if(!f)return;
-  if(favs().some(x=>x.name===f.name&&x.kcal===f.kcal)){toast('Already in quick add');return}
-  favs().push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal});
-  save();renderFavs();toast('Saved to quick add');
-}
-function day(k){if(!state.days[k])state.days[k]={foods:[],workouts:[],lift:{}};if(!state.days[k].workouts)state.days[k].workouts=[];if(!state.days[k].foods)state.days[k].foods=[];if(!state.days[k].lift)state.days[k].lift={};return state.days[k]}
-function totals(k){const d=day(k);return{
-  protein:d.foods.reduce((s,f)=>s+f.protein,0),carbs:d.foods.reduce((s,f)=>s+f.carbs,0),
-  fat:d.foods.reduce((s,f)=>s+f.fat,0),kcal:d.foods.reduce((s,f)=>s+f.kcal,0),
-  burned:d.workouts.reduce((s,w)=>s+(w.cal||0),0)}}
-function pctv(v,g){return Math.min(100,g>0?Math.round(v/g*100):0)}
-
 /* ═══════════ LIFT PROGRAM ═══════════ */
 const PROGRAM=[
  {id:'d1',name:'Chest & Back',short:'CHEST/BACK',icon:'▰',
@@ -620,29 +585,133 @@ const PROGRAM=[
   ]}
 ];
 
+/* ═══════════ FAVORITES ═══════════ */
+function favs(){if(!Array.isArray(state.favs))state.favs=DEFAULT_FAVS.map(f=>({...f}));return state.favs}
+let favEditing=false;
+function toggleFavEdit(){favEditing=!favEditing;
+  document.getElementById('favBox').classList.toggle('editing',favEditing);
+  const b=document.getElementById('favEditBtn');b.textContent=favEditing?'DONE':'EDIT';b.classList.toggle('on',favEditing)}
+function renderFavs(){
+  const box=document.getElementById('favBox'),list=favs();
+  if(!box)return;
+  if(!list.length){box.innerHTML='<div class="empty">No quick items yet — log something, then tap ★ to save it here</div>';return}
+  box.innerHTML=list.map((f,i)=>'<button class="fav" onclick="'+(favEditing?'':'addFav('+i+')')+'">'+
+    '<span class="favn">'+esc(f.name)+'</span>'+
+    '<span class="favm">'+f.protein+'P · '+f.carbs+'C · '+f.fat+'F · '+f.kcal+'k</span>'+
+    '<button class="favx" onclick="event.stopPropagation();rmFav('+i+')">✕</button></button>').join('');
+}
+function addFav(i){
+  const f=favs()[i];if(!f)return;
+  const meal=document.getElementById('mealSel').value;
+  day(curDate).foods.push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal,meal});
+  save();render();toast(f.name+' → '+meal);
+}
+function rmFav(i){favs().splice(i,1);save();renderFavs();toast('Removed from quick add')}
+function favFromFood(i){
+  const f=day(curDate).foods[i];if(!f)return;
+  if(favs().some(x=>x.name===f.name&&x.kcal===f.kcal)){toast('Already in quick add');return}
+  favs().push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal});
+  save();renderFavs();toast('Saved to quick add');
+}
+
+/* ═══════════ BURN MODEL ═══════════ */
+function wt(){return (state.profile&&state.profile.weightLb)||175}
+const KIND={
+  recovery:{carb:0.70,epoc:1.00,label:'recovery'},
+  easy:    {carb:0.75,epoc:1.00,label:'easy'},
+  long:    {carb:0.90,epoc:1.03,label:'long'},
+  quality: {carb:0.95,epoc:1.08,label:'quality'}
+};
+function kindOf(k){
+  const d=day(k);
+  if(d.planned&&d.planned.kind&&KIND[d.planned.kind])return d.planned.kind;
+  if(d.kind&&KIND[d.kind])return d.kind;
+  return 'easy';
+}
+function setKind(k){const d=day(curDate);d.kind=k;if(d.planned)d.planned.kind=k;save();render()}
+function calPerMile(mode){return Math.round(wt()*(mode==='walk'?0.30:0.63))}
+function runBurn(mi,mode){return Math.round(mi*calPerMile(mode))}
+function liftBurn(min){return Math.round(min*4*3.5*(wt()/2.205)/200)}
+
+/* ═══════════ WORKOUT SCREENSHOT ═══════════ */
+document.getElementById('runShot').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(!f)return; e.target.value='';
+  busy('Reading your workout…');hideErr();
+  try{
+    const {base64:b64}=await compress(f,1400,.85);
+    const r=await post({image:b64,mediaType:'image/jpeg',mode:'workout'});
+    unbusy();
+    if(!r.workout){showErr(r.note||'Could not read that screenshot');return}
+    const W=r.workout, walk=/walk/i.test(W.activity);
+    const cal=W.distance?runBurn(W.distance,walk?'walk':'run'):0;
+    const d=day(curDate);
+    d.kind=W.kind;
+    if(W.state==='planned'){
+      d.planned={distance:W.distance,kind:W.kind,cal};
+      save();render();
+      toast('Planned '+W.distance+' mi '+W.kind+' — targets set');
+      return;
+    }
+    const bits=[];
+    if(W.distance)bits.push(W.distance+' mi');
+    if(W.duration)bits.push(W.duration);
+    if(W.pace)bits.push(W.pace+'/mi');
+    if(W.hr)bits.push(W.hr+' bpm');
+    const type=/ride|bike/i.test(W.activity)?'other':'run';
+    d.workouts.push({type,desc:(W.activity||'Run')+' — '+bits.join(' · '),cal});
+    delete d.planned;
+    save();render();
+    toast(W.activity+' logged — '+cal+' cal');
+  }catch(err){unbusy();showErr(err.message)}
+});
+
+/* ═══════════ ADAPTIVE GOALS ═══════════ */
+function toggleAdapt(){state.goals.adapt=!state.goals.adapt;save();render()}
+function effGoals(k){
+  const g=state.goals, d=day(k), act=totals(k).burned;
+  const planned=(d.planned&&d.planned.cal)||0;
+  const b=act>0?act:planned;
+  const src=act>0?'logged':(planned?'planned':'');
+  if(!g.adapt||!b)return{...g,extra:0,src:'',kind:''};
+  const K=KIND[kindOf(k)], adj=Math.round(b*K.epoc);
+  return {...g,
+    cal:g.cal+adj,
+    carbs:g.carbs+Math.round(adj*K.carb/4),
+    fat:g.fat+Math.round(adj*(1-K.carb)/9),
+    extra:adj, src, kind:K.label};
+}
+function adaptUI(){
+  const on=!!state.goals.adapt,b=document.getElementById('adaptBtn');
+  if(b){b.textContent=on?'ON':'OFF';b.style.color=on?'var(--pro)':'var(--mut2)';
+        b.style.borderColor=on?'var(--pro)':'var(--bd2)'}
+  const n=document.getElementById('adaptNote');if(!n)return;
+  const g=effGoals(curDate);
+  n.innerHTML=on
+    ? 'Targets above are your <b>rest-day baseline</b>. Training raises calories and carbs automatically — protein never moves. Burn is calculated from your bodyweight at <b>'+calPerMile()+' cal/mi</b> running, not taken from your watch. Pace barely changes total calories, so session type shifts the <b>carb share</b> instead.'+
+      (g.extra?'<br><br>Today: <b>'+g.extra+' cal</b> '+g.kind+' → '+g.cal+' cal · '+g.carbs+'C · '+g.fat+'F':'<br><br>No training logged today — baseline applies.')
+    : 'Fixed targets. Training will not change your numbers.';
+}
+
+/* ═══════════ LIFT ═══════════ */
 let liftDay='d1', liftLoc='gym';
 function lday(){return PROGRAM.find(d=>d.id===liftDay)}
 function lex(){return lday()[liftLoc]}
-function lkey(){return 'lift_'+curDate+'_'+liftDay+'_'+liftLoc}
-function lstate(){const d=day(curDate);d.lift=d.lift||{};d.lift[liftDay+'_'+liftLoc]=d.lift[liftDay+'_'+liftLoc]||[];return d.lift[liftDay+'_'+liftLoc]}
+function lstate(){const d=day(curDate);d.lift=d.lift||{};const k=liftDay+'_'+liftLoc;d.lift[k]=d.lift[k]||[];return d.lift[k]}
 function lpctv(){const st=lstate(),n=lex().length;return n?Math.round(st.filter(Boolean).length/n*100):0}
-
 function setLoc(l){liftLoc=l;renderLift()}
 function pickDay(id){liftDay=id;renderLift()}
 function toggleEx(i){const st=lstate();st[i]=!st[i];save();renderLift()}
 function resetLift(){const d=day(curDate);if(d.lift)delete d.lift[liftDay+'_'+liftLoc];save();renderLift();toast('Day reset')}
-
 function finishLift(){
   const st=lstate(),done=st.filter(Boolean).length,tot=lex().length;
   if(!done){toast('Check off some work first');return}
   const d=lday();
-  const mins=done*7;
-  day(curDate).workouts.push({type:'lift',desc:d.name+' ('+liftLoc+') — '+done+'/'+tot+' complete',cal:liftBurn(mins)});
+  day(curDate).workouts.push({type:'lift',desc:d.name+' ('+liftLoc+') — '+done+'/'+tot+' complete',cal:liftBurn(done*7)});
   save();render();toast('Logged to today');tab('today');
 }
-
 function renderLift(){
-  const sel=document.getElementById('daySel');
+  const sel=document.getElementById('daySel');if(!sel)return;
   sel.innerHTML=PROGRAM.map(d=>{
     const saved=(day(curDate).lift||{})[d.id+'_'+liftLoc]||[];
     const n=d[liftLoc].length, c=saved.filter(Boolean).length;
@@ -650,15 +719,12 @@ function renderLift(){
       '<div class="dn">'+d.icon+' '+d.name+'</div>'+
       '<div class="dp">'+(c?c+'/'+n+' DONE':n+' LIFTS')+'</div></button>';
   }).join('');
-
   document.getElementById('loc-gym').classList.toggle('on',liftLoc==='gym');
   document.getElementById('loc-home').classList.toggle('on',liftLoc==='home');
-
   const st=lstate(),list=lex(),p=lpctv();
   document.getElementById('lpct').textContent=p+'%';
   document.getElementById('lcount').textContent=st.filter(Boolean).length+' / '+list.length+' complete';
   document.getElementById('lfill').style.width=p+'%';
-
   document.getElementById('exList').innerHTML=list.map((e,i)=>{
     const dn=!!st[i];
     const ck=dn
@@ -670,6 +736,13 @@ function renderLift(){
       '<div class="exc">'+esc(e[3])+'</div></div></div>';
   }).join('');
 }
+
+function day(k){if(!state.days[k])state.days[k]={foods:[],workouts:[],lift:{}};if(!state.days[k].workouts)state.days[k].workouts=[];if(!state.days[k].foods)state.days[k].foods=[];if(!state.days[k].lift)state.days[k].lift={};return state.days[k]}
+function totals(k){const d=day(k);return{
+  protein:d.foods.reduce((s,f)=>s+f.protein,0),carbs:d.foods.reduce((s,f)=>s+f.carbs,0),
+  fat:d.foods.reduce((s,f)=>s+f.fat,0),kcal:d.foods.reduce((s,f)=>s+f.kcal,0),
+  burned:d.workouts.reduce((s,w)=>s+(w.cal||0),0)}}
+function pctv(v,g){return Math.min(100,g>0?Math.round(v/g*100):0)}
 
 /* ═══════════ NAV ═══════════ */
 function tab(t){
@@ -863,32 +936,6 @@ function showErr(m){const b=document.getElementById('errBox');b.textContent=m;b.
 function hideErr(){document.getElementById('errBox').style.display='none'}
 
 /* ═══════════ WORKOUTS ═══════════ */
-document.getElementById('runShot').addEventListener('change',async e=>{
-  const f=e.target.files&&e.target.files[0];
-  if(!f)return;
-  e.target.value='';
-  busy('Reading your run…');hideErr();
-  try{
-    const {base64:b64}=await compress(f,1400,.85);
-    const r=await post({image:b64,mediaType:'image/jpeg',mode:'run'});
-    unbusy();
-    if(!r.run){showErr(r.note||'Could not read that screenshot');return}
-    const R=r.run;
-    const bits=[];
-    if(R.distance)bits.push(R.distance+' mi');
-    if(R.duration)bits.push(R.duration);
-    if(R.pace)bits.push(R.pace+'/mi');
-    if(R.hr)bits.push(R.hr+' bpm');
-    const walk=/walk/i.test(R.activity);
-    const type=/ride|bike/i.test(R.activity)?'other':(/run|walk/i.test(R.activity)?'run':'other');
-    const cal=R.distance?runBurn(R.distance,walk?'walk':'run'):(R.kcal||0);
-    day(curDate).workouts.push({type,desc:(R.activity||'Run')+' — '+bits.join(' · '),cal});
-    delete day(curDate).planned;
-    save();render();
-    toast(R.activity+' logged — '+cal+' cal');
-  }catch(err){unbusy();showErr(err.message)}
-});
-
 function toggleWF(){wfOpen=!wfOpen;document.getElementById('wfBox').classList.toggle('on',wfOpen)}
 function setWT(t){wType=t;['run','lift','other'].forEach(x=>document.getElementById('wt-'+x).className='wtb'+(x===t?' '+t:''))}
 function addWorkout(){
@@ -913,7 +960,7 @@ function saveGoals(){
   state.profile={...state.profile,weightLb:+document.getElementById('gWt').value||175};
   save();render();toast('Goals saved');
 }
-function fillGoals(){adaptUI();const w=document.getElementById('gWt');if(w)w.value=wt();const g=state.goals;
+function fillGoals(){adaptUI();const _w=document.getElementById('gWt');if(_w)_w.value=wt();const g=state.goals;
   document.getElementById('gCal').value=g.cal;document.getElementById('gPro').value=g.protein;
   document.getElementById('gCarb').value=g.carbs;document.getElementById('gFat').value=g.fat}
 function exportData(){
@@ -945,78 +992,6 @@ async function runDiag(){
 
 /* ═══════════ RENDER ═══════════ */
 function render(){dateLabel();dash();wchips();flog();renderFavs();fillGoals()}
-function wt(){return (state.profile&&state.profile.weightLb)||175}
-/* Pace barely changes calories per mile, but it changes fuel mix a lot.
-   carb = share of replacement calories routed to carbohydrate.
-   epoc = small post-exercise bump, real only for hard efforts. */
-const KIND={
-  recovery:{carb:0.70,epoc:1.00,label:'recovery'},
-  easy:    {carb:0.75,epoc:1.00,label:'easy'},
-  long:    {carb:0.90,epoc:1.03,label:'long'},
-  quality: {carb:0.95,epoc:1.08,label:'quality'}
-};
-function kindOf(k){
-  const d=day(k);
-  if(d.planned&&d.planned.kind&&KIND[d.planned.kind])return d.planned.kind;
-  if(d.kind&&KIND[d.kind])return d.kind;
-  return 'easy';
-}
-function setKind(k){day(curDate).kind=k;if(day(curDate).planned)day(curDate).planned.kind=k;save();render();}
-/* Net cost above resting. Running ~0.63 kcal/lb/mi is pace-independent
-   within normal ranges; walking is roughly half that. */
-function calPerMile(mode){return Math.round(wt()*(mode==='walk'?0.30:0.63))}
-function runBurn(mi,mode){return Math.round(mi*calPerMile(mode))}
-/* Lifting: ~4 METs net once rest periods are counted. */
-function liftBurn(min){return Math.round(min*4*3.5*(wt()/2.205)/200)}
-
-document.getElementById('planShot').addEventListener('change',async e=>{
-  const f=e.target.files&&e.target.files[0];
-  if(!f)return; e.target.value='';
-  busy('Reading your plan…');hideErr();
-  try{
-    const {base64:b64}=await compress(f,1400,.85);
-    const r=await post({image:b64,mediaType:'image/jpeg',mode:'plan'});
-    unbusy();
-    if(!r.plan){showErr(r.note||'Could not read that plan');return}
-    const P=r.plan, est=runBurn(P.distance);
-    day(curDate).planned={distance:P.distance,kind:P.kind,cal:est};
-    save();render();
-    toast('Planned '+P.distance+' mi — targets set for ~'+est+' cal');
-  }catch(err){unbusy();showErr(err.message)}
-});
-
-function clearPlan(){delete day(curDate).planned;save();render();toast('Plan cleared')}
-
-function toggleAdapt(){state.goals.adapt=!state.goals.adapt;save();fillGoals();dash();}
-
-function adaptUI(){
-  const on=!!state.goals.adapt,b=document.getElementById('adaptBtn');
-  if(b){b.textContent=on?'ON':'OFF';b.style.color=on?'var(--pro)':'var(--mut2)';
-        b.style.borderColor=on?'var(--pro)':'var(--bd2)';}
-  const n=document.getElementById('adaptNote');if(!n)return;
-  const g=effGoals(curDate);
-  n.innerHTML=on
-    ? 'Targets above are your <b>rest-day baseline</b>. Training raises calories and carbs automatically — protein never moves. Burn is calculated from your bodyweight at <b>'+calPerMile()+' cal/mi</b> running, not taken from your watch. Pace barely changes total calories, so session type shifts the <b>carb share</b> instead — quality work depletes far more glycogen than easy miles of the same distance.'+
-      (g.extra?'<br><br>Today: <b>'+g.extra+' cal</b> trained → '+g.cal+' cal · '+g.carbs+'C · '+g.fat+'F':'<br><br>No training logged today — baseline applies.')
-    : 'Fixed targets. Training will not change your numbers.';
-}
-
-function effGoals(k){
-  const g=state.goals, d=day(k), act=totals(k).burned;
-  const planned=(d.planned&&d.planned.cal)||0;
-  const b=act>0?act:planned;
-  const src=act>0?'logged':(planned?'planned':'');
-  if(!g.adapt||!b)return{...g,cal:g.cal,carbs:g.carbs,fat:g.fat,extra:0,src:'',kind:''};
-  const K=KIND[kindOf(k)], adj=Math.round(b*K.epoc);
-  return {
-    ...g,
-    cal:g.cal+adj,
-    carbs:g.carbs+Math.round(adj*K.carb/4),
-    fat:g.fat+Math.round(adj*(1-K.carb)/9),
-    extra:adj, src, kind:K.label
-  };
-}
-
 function dash(){
   const t=totals(curDate),g=effGoals(curDate),rem=g.cal-t.kcal;
   const cv=document.getElementById('calRem');
