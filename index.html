@@ -274,6 +274,15 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         </div>
       </div>
 
+      <div class="mrow">
+        <div class="mc card" style="width:100%">
+          <div class="mca" style="background:#7dd3fc"></div>
+          <div class="mcl" style="color:#7dd3fc">SODIUM</div>
+          <div class="mcn"><div class="mcv" id="naCur" style="color:#7dd3fc">0</div><div class="mcg" id="naGoal">/2000mg</div></div>
+          <div class="mcb"><div class="mcf" id="naBar" style="background:#7dd3fc"></div></div>
+        </div>
+      </div>
+
       <!-- QUICK ADD -->
       <div class="sec">
         <div class="sh">
@@ -281,6 +290,19 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
           <button class="favedit" id="favEditBtn" onclick="toggleFavEdit()">EDIT</button>
         </div>
         <div class="favs" id="favBox"></div>
+        <div id="favForm" style="display:none;margin-top:12px;padding:12px;border:1px solid var(--bd2);border-radius:12px;background:var(--surf)">
+          <input id="nfName" placeholder="Name (e.g. Goodles Shella Good)" style="width:100%;margin-bottom:8px">
+          <input id="nfPortion" placeholder="Portion (e.g. 1 serving prepared)" style="width:100%;margin-bottom:8px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+            <input id="nfP" type="number" inputmode="decimal" placeholder="P">
+            <input id="nfC" type="number" inputmode="decimal" placeholder="C">
+            <input id="nfF" type="number" inputmode="decimal" placeholder="F">
+            <input id="nfK" type="number" inputmode="numeric" placeholder="kcal">
+          </div>
+          <input id="nfNa" type="number" inputmode="numeric" placeholder="Sodium (mg)" style="width:100%;margin-bottom:10px">
+          <button class="btn" style="width:100%" onclick="saveNewFav()">Save to Quick Add</button>
+        </div>
+        <button class="favedit" onclick="toggleFavForm()" id="favAddBtn" style="width:100%;margin-top:10px;padding:8px">＋ ADD ITEM</button>
       </div>
 
       <!-- LOG FOOD -->
@@ -387,6 +409,11 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         <div class="gr"><label><span class="dot" style="background:var(--carb)"></span>Carbs (g)</label><input type="number" inputmode="numeric" id="gCarb"></div>
         <div class="gr"><label><span class="dot" style="background:var(--fat)"></span>Fat (g)</label><input type="number" inputmode="numeric" id="gFat"></div>
         <div class="gr"><label><span class="dot" style="background:var(--fat)"></span>Bodyweight (lb)</label><input type="number" inputmode="numeric" id="gWt"></div>
+        <div class="gr"><label><span class="dot" style="background:#7dd3fc"></span>Sweat sodium (mg/hr)</label><input type="number" inputmode="numeric" id="gNa"></div>
+        <div class="gr" style="align-items:center">
+          <label><span class="dot" style="background:#7dd3fc"></span>Hot / humid conditions</label>
+          <button id="hotBtn" onclick="toggleHot()" style="padding:7px 14px;border-radius:9px;border:1px solid var(--bd2);background:var(--surf);color:var(--mut);font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:1px"></button>
+        </div>
         <div class="gr" style="align-items:center">
           <label><span class="dot" style="background:var(--carb)"></span>Adapt to training</label>
           <button id="adaptBtn" onclick="toggleAdapt()" style="padding:7px 14px;border-radius:9px;border:1px solid var(--bd2);background:var(--surf);color:var(--mut);font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:1px"></button>
@@ -497,13 +524,18 @@ const DEFAULT_FAVS=[
   {name:'Fairlife Core Power Elite',portion:'14 oz bottle',protein:42,carbs:9,fat:5,kcal:240},
   {name:'Built Puff',portion:'1 bar',protein:17,carbs:17,fat:6,kcal:150},
   {name:'Homemade shake',portion:'Fairlife + scoop',protein:45,carbs:14,fat:5,kcal:280},
-  {name:'Hydration packet',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:5}
+  {name:'Goodles Shella Good',portion:'1 serving prepared',protein:15,carbs:48,fat:4.5,kcal:270,sodium:600},
+  {name:'NeuroSonic Super Fruit',portion:'16.9 oz bottle',protein:0,carbs:10,fat:0,kcal:40,sodium:0},
+  {name:'Magna Magnesium',portion:'1 stick',protein:0,carbs:0,fat:0,kcal:3,sodium:200},
+  {name:'Instant Cherry Limeade',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:10,sodium:500},
+  {name:'Instant ICEE Blue Raspberry',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:10,sodium:500},
+  {name:'Waterboy Weekend Recovery',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:10,sodium:1120}
 ];
-let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{weightLb:175},days:{},favs:null};
+let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{weightLb:175,sweatNa:800,hot:true},days:{},favs:null};
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
 /* ═══════════ LIFT PROGRAM ═══════════ */
 const PROGRAM=[
@@ -598,7 +630,15 @@ const PROGRAM=[
 ];
 
 /* ═══════════ FAVORITES ═══════════ */
-function favs(){if(!Array.isArray(state.favs))state.favs=DEFAULT_FAVS.map(f=>({...f}));return state.favs}
+function favs(){
+  if(!Array.isArray(state.favs)){state.favs=DEFAULT_FAVS.map(f=>({...f}));return state.favs}
+  if(!state.favSeed4){
+    const have=new Set(state.favs.map(f=>f.name));
+    DEFAULT_FAVS.forEach(f=>{if(!have.has(f.name))state.favs.push({...f})});
+    state.favSeed4=true;save();
+  }
+  return state.favs;
+}
 let favEditing=false;
 function toggleFavEdit(){favEditing=!favEditing;
   document.getElementById('favBox').classList.toggle('editing',favEditing);
@@ -609,20 +649,37 @@ function renderFavs(){
   if(!list.length){box.innerHTML='<div class="empty">No quick items yet — log something, then tap ★ to save it here</div>';return}
   box.innerHTML=list.map((f,i)=>'<button class="fav" onclick="'+(favEditing?'':'addFav('+i+')')+'">'+
     '<span class="favn">'+esc(f.name)+'</span>'+
-    '<span class="favm">'+f.protein+'P · '+f.carbs+'C · '+f.fat+'F · '+f.kcal+'k</span>'+
+    '<span class="favm">'+f.protein+'P · '+f.carbs+'C · '+f.fat+'F · '+f.kcal+'k'+(f.sodium?' · '+f.sodium+'mg':'')+'</span>'+
     '<button class="favx" onclick="event.stopPropagation();rmFav('+i+')">✕</button></button>').join('');
 }
 function addFav(i){
   const f=favs()[i];if(!f)return;
   const meal=document.getElementById('mealSel').value;
-  day(curDate).foods.push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal,meal});
+  day(curDate).foods.push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal,sodium:f.sodium||0,meal});
   save();render();toast(f.name+' → '+meal);
 }
 function rmFav(i){favs().splice(i,1);save();renderFavs();toast('Removed from quick add')}
+function toggleFavForm(){
+  const f=document.getElementById('favForm'),b=document.getElementById('favAddBtn');
+  const open=f.style.display==='none';
+  f.style.display=open?'block':'none';
+  b.textContent=open?'✕ CANCEL':'＋ ADD ITEM';
+}
+function saveNewFav(){
+  const g=id=>document.getElementById(id).value;
+  const name=g('nfName').trim();
+  if(!name){toast('Give it a name');return}
+  const P=+g('nfP')||0,C=+g('nfC')||0,F=+g('nfF')||0;
+  const K=+g('nfK')||Math.round(P*4+C*4+F*9);
+  favs().push({name,portion:g('nfPortion').trim(),protein:P,carbs:C,fat:F,kcal:K,sodium:+g('nfNa')||0});
+  save();
+  ['nfName','nfPortion','nfP','nfC','nfF','nfK','nfNa'].forEach(i=>document.getElementById(i).value='');
+  toggleFavForm();renderFavs();toast(name+' added');
+}
 function favFromFood(i){
   const f=day(curDate).foods[i];if(!f)return;
   if(favs().some(x=>x.name===f.name&&x.kcal===f.kcal)){toast('Already in quick add');return}
-  favs().push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal});
+  favs().push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal,sodium:f.sodium||0});
   save();renderFavs();toast('Saved to quick add');
 }
 
@@ -643,6 +700,26 @@ function kindOf(k){
 }
 function setKind(k){const d=day(curDate);d.kind=k;if(d.planned)d.planned.kind=k;save();render()}
 function calPerMile(mode){return Math.round(wt()*(mode==='walk'?0.30:0.63))}
+function milesToday(k){
+  const d=day(k);
+  let mi=0;
+  (d.workouts||[]).forEach(w=>{
+    if(w.type!=='run')return;
+    const m=/([\d.]+)\s*mi/.exec(w.desc||'');
+    if(m)mi+=parseFloat(m[1]);
+  });
+  if(!mi&&d.planned&&d.planned.distance)mi=d.planned.distance;
+  return mi;
+}
+/* Baseline intake target plus sweat replacement.
+   sweatNa = mg sodium lost per hour of running; hot adds 25%. */
+function sodiumGoal(k){
+  const p=state.profile||{}, perHr=p.sweatNa||800;
+  const mi=milesToday(k);
+  const hrs=mi/7;              // ~8:35/mi
+  const mult=p.hot?1.25:1;
+  return Math.round(2000 + hrs*perHr*mult);
+}
 function runBurn(mi,mode){return Math.round(mi*calPerMile(mode))}
 function liftBurn(min){return Math.round(min*3.5*3.5*(wt()/2.205)/200)}
 
@@ -684,6 +761,7 @@ document.getElementById('runShot').addEventListener('change',async e=>{
 
 /* ═══════════ ADAPTIVE GOALS ═══════════ */
 function toggleAdapt(){state.goals.adapt=!state.goals.adapt;save();render()}
+function toggleHot(){state.profile.hot=!state.profile.hot;save();render()}
 function effGoals(k){
   const g=state.goals, d=day(k), act=totals(k).burned;
   const planned=(d.planned&&d.planned.cal)||0;
@@ -757,6 +835,7 @@ function day(k){if(!state.days[k])state.days[k]={foods:[],workouts:[],lift:{}};i
 function totals(k){const d=day(k);return{
   protein:d.foods.reduce((s,f)=>s+f.protein,0),carbs:d.foods.reduce((s,f)=>s+f.carbs,0),
   fat:d.foods.reduce((s,f)=>s+f.fat,0),kcal:d.foods.reduce((s,f)=>s+f.kcal,0),
+  sodium:d.foods.reduce((s,f)=>s+(f.sodium||0),0),
   burned:d.workouts.reduce((s,w)=>s+(w.cal||0),0)}}
 function pctv(v,g){return Math.min(100,g>0?Math.round(v/g*100):0)}
 
@@ -824,7 +903,7 @@ async function analyzePhoto(){
   if(!photoB64)return;
   busy('Reading your plate…');hideErr();hideRes();
   try{
-    const r=await post({image:photoB64,mediaType:'image/jpeg'});
+    const r=await post({image:photoB64,mediaType:'image/jpeg',pantry:favs()});
     unbusy();showItems(r,'IN THIS PHOTO');
   }catch(err){unbusy();showErr(err.message)}
 }
@@ -860,7 +939,7 @@ async function lookupText(){
   busy('Estimating macros…');hideErr();hideRes();
   document.getElementById('qGo').disabled=true;
   try{
-    const r=await post({query:q});
+    const r=await post({pantry:favs(),query:q});
     unbusy();showItems(r,'ESTIMATED');
   }catch(err){
     unbusy();
@@ -974,10 +1053,15 @@ function saveGoals(){
     protein:+document.getElementById('gPro').value||170,
     carbs:+document.getElementById('gCarb').value||250,
     fat:+document.getElementById('gFat').value||75};
-  state.profile={...state.profile,weightLb:+document.getElementById('gWt').value||175};
+  state.profile={...state.profile,weightLb:+document.getElementById('gWt').value||175,sweatNa:+document.getElementById('gNa').value||800};
   save();render();toast('Goals saved');
 }
-function fillGoals(){adaptUI();const _w=document.getElementById('gWt');if(_w)_w.value=wt();const g=state.goals;
+function fillGoals(){adaptUI();
+  const _w=document.getElementById('gWt');if(_w)_w.value=wt();
+  const _n=document.getElementById('gNa');if(_n)_n.value=(state.profile&&state.profile.sweatNa)||800;
+  const _h=document.getElementById('hotBtn');
+  if(_h){const on=!!(state.profile&&state.profile.hot);_h.textContent=on?'ON':'OFF';
+    _h.style.color=on?'#7dd3fc':'var(--mut2)';_h.style.borderColor=on?'#7dd3fc':'var(--bd2)';}const g=state.goals;
   document.getElementById('gCal').value=g.cal;document.getElementById('gPro').value=g.protein;
   document.getElementById('gCarb').value=g.carbs;document.getElementById('gFat').value=g.fat}
 function exportData(){
@@ -1010,6 +1094,14 @@ async function runDiag(){
 /* ═══════════ RENDER ═══════════ */
 function render(){dateLabel();dash();wchips();flog();renderFavs();fillGoals()}
 function dash(){
+  const naG=sodiumGoal(curDate), naC=totals(curDate).sodium;
+  const naCur=document.getElementById('naCur');
+  if(naCur){
+    naCur.textContent=naC;
+    document.getElementById('naGoal').textContent='/'+naG+'mg';
+    document.getElementById('naBar').style.width=Math.min(100,naG?naC/naG*100:0)+'%';
+  }
+
   const t=totals(curDate),g=effGoals(curDate),rem=g.cal-t.kcal;
   const cv=document.getElementById('calRem');
   cv.textContent=rem;cv.className='cv'+(rem<0?' over':rem<150?' close':'');
