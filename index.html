@@ -144,6 +144,26 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 .wi input{background:var(--surf2);border:1px solid var(--bd2);border-radius:8px;padding:10px;color:var(--txt);font-size:.82rem;min-width:0}
 .wi input:focus{border-color:var(--pro)}
 .wadd{background:var(--pro);border:none;border-radius:8px;padding:10px 14px;color:#000;font-weight:700;font-size:.78rem;white-space:nowrap}
+.dsel{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:12px}
+.dbtn{padding:11px 9px;border-radius:11px;background:var(--surf);border:1px solid var(--bd2);color:var(--mut);text-align:left;font-family:'DM Sans',sans-serif}
+.dbtn.on{border-color:var(--pro);background:var(--surf2);color:var(--txt)}
+.dbtn .dn{font-size:.78rem;font-weight:700;line-height:1.15}
+.dbtn .dp{font-family:'DM Mono',monospace;font-size:.56rem;color:var(--mut2);margin-top:3px;letter-spacing:.4px}
+.loc{display:flex;gap:0;border:1px solid var(--bd2);border-radius:11px;overflow:hidden;margin-bottom:14px}
+.loc button{flex:1;padding:11px;background:transparent;border:none;color:var(--mut2);font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:1.5px}
+.loc button.on{background:var(--pro);color:#0a0a0a;font-weight:600}
+.ex{display:flex;align-items:flex-start;gap:12px;padding:12px 13px;border-radius:11px;border:1px solid transparent;margin-bottom:5px}
+.ex:active{background:var(--surf)}
+.ex.done{opacity:.4}
+.ex.done .exn{text-decoration:line-through}
+.exck{flex-shrink:0;width:21px;height:21px;margin-top:1px}
+.exn{font-size:.83rem;font-weight:600;line-height:1.3}
+.exm{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--pro);letter-spacing:.5px;margin-top:2px}
+.exc{font-size:.68rem;color:var(--mut2);font-style:italic;margin-top:3px;line-height:1.45}
+.lbar{height:3px;background:var(--bd);border-radius:2px;overflow:hidden;margin:4px 0 14px}
+.lfill{height:100%;background:var(--pro);border-radius:2px;transition:width .35s}
+.lhead{display:flex;align-items:baseline;justify-content:space-between;margin-top:14px}
+.lpct{font-size:1.7rem;font-weight:800;color:var(--pro);line-height:1}
 .favs{display:flex;flex-wrap:wrap;gap:7px}
 .fav{display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:9px 13px;border-radius:12px;background:var(--surf);border:1px solid var(--bd2);color:var(--txt);font-family:'DM Sans',sans-serif;text-align:left;position:relative}
 .fav:active{border-color:var(--pro);background:var(--surf2)}
@@ -314,8 +334,15 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
       <div class="sec">
         <div class="sh">
           <div class="st">WORKOUTS</div>
-          <button class="sb2" onclick="toggleWF()">＋ Log Workout</button>
+          <div style="display:flex;gap:6px">
+            <button class="sb2" onclick="document.getElementById('planShot').click()">📋 Plan</button>
+            <button class="sb2" onclick="document.getElementById('runShot').click()">📸 Strava</button>
+            <button class="sb2" onclick="toggleWF()">＋ Log</button>
+          </div>
+          <input type="file" accept="image/*" id="runShot" style="display:none">
+          <input type="file" accept="image/*" id="planShot" style="display:none">
         </div>
+        <div class="wt" id="kindSel" style="margin-bottom:10px"></div>
         <div class="wf" id="wfBox">
           <div class="wt">
             <button class="wtb run" id="wt-run" onclick="setWT('run')">🏃 Run</button>
@@ -338,6 +365,22 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
     <div id="p-history" class="panel"><div id="histBox"></div></div>
 
     <!-- ══ GOALS ══ -->
+    <div id="p-lift" class="panel">
+      <div class="sec">
+        <div class="sh"><div class="st">TRAINING DAY</div></div>
+        <div class="dsel" id="daySel"></div>
+        <div class="loc">
+          <button id="loc-gym" onclick="setLoc('gym')">GYM</button>
+          <button id="loc-home" onclick="setLoc('home')">HOME</button>
+        </div>
+        <div class="lhead"><span class="lpct" id="lpct">0%</span><span style="font-size:.7rem;color:var(--mut2)" id="lcount"></span></div>
+        <div class="lbar"><div class="lfill" id="lfill"></div></div>
+        <div id="exList"></div>
+        <button class="btn" id="finBtn" onclick="finishLift()" style="width:100%;margin-top:14px">✓ FINISH &amp; LOG SESSION</button>
+        <button class="favedit" onclick="resetLift()" style="width:100%;margin-top:10px;padding:8px">↺ RESET DAY</button>
+      </div>
+    </div>
+
     <div id="p-goals" class="panel">
       <div class="gp card">
         <div class="gt">DAILY MACRO GOALS</div>
@@ -345,8 +388,13 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         <div class="gr"><label><span class="dot" style="background:var(--pro)"></span>Protein (g)</label><input type="number" inputmode="numeric" id="gPro"></div>
         <div class="gr"><label><span class="dot" style="background:var(--carb)"></span>Carbs (g)</label><input type="number" inputmode="numeric" id="gCarb"></div>
         <div class="gr"><label><span class="dot" style="background:var(--fat)"></span>Fat (g)</label><input type="number" inputmode="numeric" id="gFat"></div>
+        <div class="gr"><label><span class="dot" style="background:var(--fat)"></span>Bodyweight (lb)</label><input type="number" inputmode="numeric" id="gWt"></div>
+        <div class="gr" style="align-items:center">
+          <label><span class="dot" style="background:var(--carb)"></span>Adapt to training</label>
+          <button id="adaptBtn" onclick="toggleAdapt()" style="padding:7px 14px;border-radius:9px;border:1px solid var(--bd2);background:var(--surf);color:var(--mut);font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:1px"></button>
+        </div>
         <button class="gsave" onclick="saveGoals()">Save Goals</button>
-        <div class="gn">Workout calories are added to your daily budget automatically, so a long-run day gives you more room. The protein goal stays fixed regardless of activity.</div>
+        <div class="gn" id="adaptNote"></div>
       </div>
       <div class="gp card">
         <div class="gt">DATA</div>
@@ -366,6 +414,7 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
   <nav class="bnav">
     <button class="nb on" id="n-today" onclick="tab('today')"><span class="ic">📊</span>TODAY</button>
     <button class="nb" id="n-history" onclick="tab('history')"><span class="ic">📅</span>HISTORY</button>
+    <button class="nb" id="n-lift" onclick="tab('lift')"><span class="ic">🏋️</span>LIFT</button>
     <button class="nb" id="n-goals" onclick="tab('goals')"><span class="ic">🎯</span>GOALS</button>
   </nav>
 </div>
@@ -452,11 +501,11 @@ const DEFAULT_FAVS=[
   {name:'Homemade shake',portion:'Fairlife + scoop',protein:45,carbs:14,fat:5,kcal:280},
   {name:'Hydration packet',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:5}
 ];
-let state={goals:{cal:2500,protein:170,carbs:260,fat:70},days:{},favs:null};
+let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{weightLb:175},days:{},favs:null};
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null}}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
 function favs(){if(!Array.isArray(state.favs))state.favs=DEFAULT_FAVS.map(f=>({...f}));return state.favs}
 let favEditing=false;
@@ -484,21 +533,153 @@ function favFromFood(i){
   favs().push({name:f.name,portion:f.portion||'',protein:f.protein,carbs:f.carbs,fat:f.fat,kcal:f.kcal});
   save();renderFavs();toast('Saved to quick add');
 }
-function day(k){if(!state.days[k])state.days[k]={foods:[],workouts:[]};if(!state.days[k].workouts)state.days[k].workouts=[];if(!state.days[k].foods)state.days[k].foods=[];return state.days[k]}
+function day(k){if(!state.days[k])state.days[k]={foods:[],workouts:[],lift:{}};if(!state.days[k].workouts)state.days[k].workouts=[];if(!state.days[k].foods)state.days[k].foods=[];if(!state.days[k].lift)state.days[k].lift={};return state.days[k]}
 function totals(k){const d=day(k);return{
   protein:d.foods.reduce((s,f)=>s+f.protein,0),carbs:d.foods.reduce((s,f)=>s+f.carbs,0),
   fat:d.foods.reduce((s,f)=>s+f.fat,0),kcal:d.foods.reduce((s,f)=>s+f.kcal,0),
   burned:d.workouts.reduce((s,w)=>s+(w.cal||0),0)}}
 function pctv(v,g){return Math.min(100,g>0?Math.round(v/g*100):0)}
 
+/* ═══════════ LIFT PROGRAM ═══════════ */
+const PROGRAM=[
+ {id:'d1',name:'Chest & Back',short:'CHEST/BACK',icon:'▰',
+  gym:[
+   ['Barbell Bench Press','4×6','3 min','Heavy anchor — log the weight'],
+   ['Weighted Pull-Up','4×6-8','2-3 min','Add plate once bodyweight is easy'],
+   ['Incline DB Press','3×10','90s','3-sec negative'],
+   ['Chest-Supported Row','3×10-12','90s','Chest stays on pad'],
+   ['Cable Fly','3×15','60s','Stretch at the bottom'],
+   ['Neutral-Grip Lat Pulldown','3×12','60s','Drive elbows to hips'],
+   ['Face Pull','3×15','60s','Shoulder health — do not skip']
+  ],
+  home:[
+   ['DB Floor Press','4×10','2 min','45s — floor limits range, that is fine'],
+   ['Weighted Pull-Up','4×6-8','2-3 min','Hang the 45 KB from a belt'],
+   ['Incline DB Press','3×12','90s','Bench to ~30°'],
+   ['Single-Arm DB Row','4×12 ea','90s','Knee on bench, full stretch'],
+   ['DB Fly on Bench','3×15','60s','Light, big arc'],
+   ['Band Pull-Apart','3×20','45s','Rear delts'],
+   ['Band Face Pull','3×15','60s','Anchor band over the pull-up bar']
+  ]},
+ {id:'d2',name:'Legs',short:'LEGS',icon:'▲',
+  gym:[
+   ['Back Squat','4×6','3 min','Depth over load during the build'],
+   ['Romanian Deadlift','3×8','2 min','3-sec negative, feel the hamstring'],
+   ['Leg Press','3×12','90s','Do not lock out'],
+   ['Walking Lunge','3×12 ea','90s','Torso upright'],
+   ['Lying Leg Curl','3×12','60s','Hamstring insurance for the calf'],
+   ['Standing Calf Raise','4×15','60s','Pause at the top']
+  ],
+  home:[
+   ['Bulgarian Split Squat','4×10 ea','2 min','Rear foot on bench, 45s in hand'],
+   ['Single-Leg RDL','3×10 ea','90s','Slow — this is balance work too'],
+   ['1.5-Rep Goblet Squat','3×10','90s','45 KB. Down, half up, down, full up'],
+   ['Bench Step-Up','3×12 ea','90s','Drive through the heel'],
+   ['KB Swing','4×15','60s','45 KB, hips not arms'],
+   ['Single-Leg Calf Raise','3×20 ea','45s','Off a step if you have one']
+  ]},
+ {id:'d3',name:'Shoulders, Arms & Core',short:'SHLDR/ARMS',icon:'◆',
+  gym:[
+   ['Seated DB Shoulder Press','4×8','2 min','Primary press of the day'],
+   ['Lateral Raise','4×15','60s','Light and strict — this builds the width'],
+   ['Cable Rear Delt Fly','3×15','60s','Pinch the blades'],
+   ['EZ Bar Curl','3×10','60s','Superset with pushdowns'],
+   ['Rope Pushdown','3×12','60s','Elbows pinned'],
+   ['Hammer Curl','3×12','60s','Neutral grip'],
+   ['Overhead Cable Extension','3×12','60s','Long head of the tricep'],
+   ['Pallof Press','3×12 ea','45s','Anti-rotation'],
+   ['Hanging Leg Raise','3×12','60s','Controlled, no swing']
+  ],
+  home:[
+   ['Seated DB Shoulder Press','4×10','2 min','Bench upright, 45s'],
+   ['Lateral Raise','4×15','60s','Light and strict'],
+   ['Bent-Over DB Rear Delt Fly','3×15','60s','Chest on incline bench'],
+   ['EZ Bar Curl','3×10','60s','Superset with skull crushers'],
+   ['Skull Crusher','3×12','60s','EZ bar, elbows tucked'],
+   ['Hammer Curl','3×12','60s','Neutral grip'],
+   ['Overhead EZ Bar Extension','3×12','60s','Seated on bench'],
+   ['KB Halo','3×10 ea','45s','20 KB, slow circles'],
+   ['Plank + Dead Bug','3 rds','60s','45s plank into 10 dead bugs']
+  ]},
+ {id:'d4',name:'Posterior & Glutes',short:'POSTERIOR',icon:'▼',
+  gym:[
+   ['Trap Bar Deadlift','4×5','3 min','Second heavy lift of the week'],
+   ['Barbell Hip Thrust','4×10','2 min','Full lockout, pause at top'],
+   ['Seated Leg Curl','3×12','90s','Eccentric focus'],
+   ['Back Extension','3×15','60s','Glutes, not lower back'],
+   ['Cable Pull-Through','3×15','60s','Hinge pattern, light'],
+   ['Single-Leg Calf Raise','3×15 ea','45s','Running insurance']
+  ],
+  home:[
+   ['KB Deadlift','4×8','2 min','45 KB between feet, hinge hard'],
+   ['Bench Hip Thrust','4×12','90s','Shoulders on bench, DBs on hips'],
+   ['Single-Leg RDL','3×10 ea','90s','Heavier than Day 2 — slower'],
+   ['Nordic Negative','3×6','90s','Anchor feet under bench, 5-sec lower'],
+   ['Glute Bridge March','3×12 ea','60s','Hips level throughout'],
+   ['KB Swing','4×20','60s','Finish the day here']
+  ]}
+];
+
+let liftDay='d1', liftLoc='gym';
+function lday(){return PROGRAM.find(d=>d.id===liftDay)}
+function lex(){return lday()[liftLoc]}
+function lkey(){return 'lift_'+curDate+'_'+liftDay+'_'+liftLoc}
+function lstate(){const d=day(curDate);d.lift=d.lift||{};d.lift[liftDay+'_'+liftLoc]=d.lift[liftDay+'_'+liftLoc]||[];return d.lift[liftDay+'_'+liftLoc]}
+function lpctv(){const st=lstate(),n=lex().length;return n?Math.round(st.filter(Boolean).length/n*100):0}
+
+function setLoc(l){liftLoc=l;renderLift()}
+function pickDay(id){liftDay=id;renderLift()}
+function toggleEx(i){const st=lstate();st[i]=!st[i];save();renderLift()}
+function resetLift(){const d=day(curDate);if(d.lift)delete d.lift[liftDay+'_'+liftLoc];save();renderLift();toast('Day reset')}
+
+function finishLift(){
+  const st=lstate(),done=st.filter(Boolean).length,tot=lex().length;
+  if(!done){toast('Check off some work first');return}
+  const d=lday();
+  const mins=done*7;
+  day(curDate).workouts.push({type:'lift',desc:d.name+' ('+liftLoc+') — '+done+'/'+tot+' complete',cal:liftBurn(mins)});
+  save();render();toast('Logged to today');tab('today');
+}
+
+function renderLift(){
+  const sel=document.getElementById('daySel');
+  sel.innerHTML=PROGRAM.map(d=>{
+    const saved=(day(curDate).lift||{})[d.id+'_'+liftLoc]||[];
+    const n=d[liftLoc].length, c=saved.filter(Boolean).length;
+    return '<button class="dbtn'+(d.id===liftDay?' on':'')+'" onclick="pickDay(\''+d.id+'\')">'+
+      '<div class="dn">'+d.icon+' '+d.name+'</div>'+
+      '<div class="dp">'+(c?c+'/'+n+' DONE':n+' LIFTS')+'</div></button>';
+  }).join('');
+
+  document.getElementById('loc-gym').classList.toggle('on',liftLoc==='gym');
+  document.getElementById('loc-home').classList.toggle('on',liftLoc==='home');
+
+  const st=lstate(),list=lex(),p=lpctv();
+  document.getElementById('lpct').textContent=p+'%';
+  document.getElementById('lcount').textContent=st.filter(Boolean).length+' / '+list.length+' complete';
+  document.getElementById('lfill').style.width=p+'%';
+
+  document.getElementById('exList').innerHTML=list.map((e,i)=>{
+    const dn=!!st[i];
+    const ck=dn
+      ?'<svg class="exck" viewBox="0 0 21 21" fill="none"><circle cx="10.5" cy="10.5" r="10.5" fill="var(--pro)"/><path d="M6 11l3 3 6-6.5" stroke="#0a0a0a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      :'<svg class="exck" viewBox="0 0 21 21" fill="none"><circle cx="10.5" cy="10.5" r="9.5" stroke="var(--pro)" stroke-width="1.5" opacity=".35"/></svg>';
+    return '<div class="ex'+(dn?' done':'')+'" onclick="toggleEx('+i+')">'+ck+
+      '<div style="flex:1"><div class="exn">'+esc(e[0])+'</div>'+
+      '<div class="exm">'+e[1]+'  ·  rest '+e[2]+'</div>'+
+      '<div class="exc">'+esc(e[3])+'</div></div></div>';
+  }).join('');
+}
+
 /* ═══════════ NAV ═══════════ */
 function tab(t){
-  ['today','history','goals'].forEach(x=>{
+  ['today','history','goals','lift'].forEach(x=>{
     document.getElementById('p-'+x).classList.toggle('on',x===t);
     document.getElementById('n-'+x).classList.toggle('on',x===t);
   });
   document.getElementById('scroll').scrollTop=0;
   if(t==='history')renderHist();
+  if(t==='lift')renderLift();
 }
 function shiftDate(n){
   const d=new Date(curDate+'T12:00:00');d.setDate(d.getDate()+n);
@@ -682,6 +863,32 @@ function showErr(m){const b=document.getElementById('errBox');b.textContent=m;b.
 function hideErr(){document.getElementById('errBox').style.display='none'}
 
 /* ═══════════ WORKOUTS ═══════════ */
+document.getElementById('runShot').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(!f)return;
+  e.target.value='';
+  busy('Reading your run…');hideErr();
+  try{
+    const b64=await compress(f,1400,.85);
+    const r=await post({image:b64,mediaType:'image/jpeg',mode:'run'});
+    unbusy();
+    if(!r.run){showErr(r.note||'Could not read that screenshot');return}
+    const R=r.run;
+    const bits=[];
+    if(R.distance)bits.push(R.distance+' mi');
+    if(R.duration)bits.push(R.duration);
+    if(R.pace)bits.push(R.pace+'/mi');
+    if(R.hr)bits.push(R.hr+' bpm');
+    const walk=/walk/i.test(R.activity);
+    const type=/ride|bike/i.test(R.activity)?'other':(/run|walk/i.test(R.activity)?'run':'other');
+    const cal=R.distance?runBurn(R.distance,walk?'walk':'run'):(R.kcal||0);
+    day(curDate).workouts.push({type,desc:(R.activity||'Run')+' — '+bits.join(' · '),cal});
+    delete day(curDate).planned;
+    save();render();
+    toast(R.activity+' logged — '+cal+' cal');
+  }catch(err){unbusy();showErr(err.message)}
+});
+
 function toggleWF(){wfOpen=!wfOpen;document.getElementById('wfBox').classList.toggle('on',wfOpen)}
 function setWT(t){wType=t;['run','lift','other'].forEach(x=>document.getElementById('wt-'+x).className='wtb'+(x===t?' '+t:''))}
 function addWorkout(){
@@ -698,13 +905,15 @@ function delFood(i){day(curDate).foods.splice(i,1);save();render()}
 /* ═══════════ GOALS + DATA ═══════════ */
 function saveGoals(){
   state.goals={
-    cal:+document.getElementById('gCal').value||2500,
+    ...state.goals,
+    cal:+document.getElementById('gCal').value||2400,
     protein:+document.getElementById('gPro').value||170,
-    carbs:+document.getElementById('gCarb').value||260,
-    fat:+document.getElementById('gFat').value||70};
+    carbs:+document.getElementById('gCarb').value||250,
+    fat:+document.getElementById('gFat').value||75};
+  state.profile={...state.profile,weightLb:+document.getElementById('gWt').value||175};
   save();render();toast('Goals saved');
 }
-function fillGoals(){const g=state.goals;
+function fillGoals(){adaptUI();const w=document.getElementById('gWt');if(w)w.value=wt();const g=state.goals;
   document.getElementById('gCal').value=g.cal;document.getElementById('gPro').value=g.protein;
   document.getElementById('gCarb').value=g.carbs;document.getElementById('gFat').value=g.fat}
 function exportData(){
@@ -736,12 +945,84 @@ async function runDiag(){
 
 /* ═══════════ RENDER ═══════════ */
 function render(){dateLabel();dash();wchips();flog();renderFavs();fillGoals()}
+function wt(){return (state.profile&&state.profile.weightLb)||175}
+/* Pace barely changes calories per mile, but it changes fuel mix a lot.
+   carb = share of replacement calories routed to carbohydrate.
+   epoc = small post-exercise bump, real only for hard efforts. */
+const KIND={
+  recovery:{carb:0.70,epoc:1.00,label:'recovery'},
+  easy:    {carb:0.75,epoc:1.00,label:'easy'},
+  long:    {carb:0.90,epoc:1.03,label:'long'},
+  quality: {carb:0.95,epoc:1.08,label:'quality'}
+};
+function kindOf(k){
+  const d=day(k);
+  if(d.planned&&d.planned.kind&&KIND[d.planned.kind])return d.planned.kind;
+  if(d.kind&&KIND[d.kind])return d.kind;
+  return 'easy';
+}
+function setKind(k){day(curDate).kind=k;if(day(curDate).planned)day(curDate).planned.kind=k;save();render();}
+/* Net cost above resting. Running ~0.63 kcal/lb/mi is pace-independent
+   within normal ranges; walking is roughly half that. */
+function calPerMile(mode){return Math.round(wt()*(mode==='walk'?0.30:0.63))}
+function runBurn(mi,mode){return Math.round(mi*calPerMile(mode))}
+/* Lifting: ~4 METs net once rest periods are counted. */
+function liftBurn(min){return Math.round(min*4*3.5*(wt()/2.205)/200)}
+
+document.getElementById('planShot').addEventListener('change',async e=>{
+  const f=e.target.files&&e.target.files[0];
+  if(!f)return; e.target.value='';
+  busy('Reading your plan…');hideErr();
+  try{
+    const b64=await compress(f,1400,.85);
+    const r=await post({image:b64,mediaType:'image/jpeg',mode:'plan'});
+    unbusy();
+    if(!r.plan){showErr(r.note||'Could not read that plan');return}
+    const P=r.plan, est=runBurn(P.distance);
+    day(curDate).planned={distance:P.distance,kind:P.kind,cal:est};
+    save();render();
+    toast('Planned '+P.distance+' mi — targets set for ~'+est+' cal');
+  }catch(err){unbusy();showErr(err.message)}
+});
+
+function clearPlan(){delete day(curDate).planned;save();render();toast('Plan cleared')}
+
+function toggleAdapt(){state.goals.adapt=!state.goals.adapt;save();fillGoals();dash();}
+
+function adaptUI(){
+  const on=!!state.goals.adapt,b=document.getElementById('adaptBtn');
+  if(b){b.textContent=on?'ON':'OFF';b.style.color=on?'var(--pro)':'var(--mut2)';
+        b.style.borderColor=on?'var(--pro)':'var(--bd2)';}
+  const n=document.getElementById('adaptNote');if(!n)return;
+  const g=effGoals(curDate);
+  n.innerHTML=on
+    ? 'Targets above are your <b>rest-day baseline</b>. Training raises calories and carbs automatically — protein never moves. Burn is calculated from your bodyweight at <b>'+calPerMile()+' cal/mi</b> running, not taken from your watch. Pace barely changes total calories, so session type shifts the <b>carb share</b> instead — quality work depletes far more glycogen than easy miles of the same distance.'+
+      (g.extra?'<br><br>Today: <b>'+g.extra+' cal</b> trained → '+g.cal+' cal · '+g.carbs+'C · '+g.fat+'F':'<br><br>No training logged today — baseline applies.')
+    : 'Fixed targets. Training will not change your numbers.';
+}
+
+function effGoals(k){
+  const g=state.goals, d=day(k), act=totals(k).burned;
+  const planned=(d.planned&&d.planned.cal)||0;
+  const b=act>0?act:planned;
+  const src=act>0?'logged':(planned?'planned':'');
+  if(!g.adapt||!b)return{...g,cal:g.cal,carbs:g.carbs,fat:g.fat,extra:0,src:'',kind:''};
+  const K=KIND[kindOf(k)], adj=Math.round(b*K.epoc);
+  return {
+    ...g,
+    cal:g.cal+adj,
+    carbs:g.carbs+Math.round(adj*K.carb/4),
+    fat:g.fat+Math.round(adj*(1-K.carb)/9),
+    extra:adj, src, kind:K.label
+  };
+}
+
 function dash(){
-  const t=totals(curDate),g=state.goals,rem=g.cal+t.burned-t.kcal;
+  const t=totals(curDate),g=effGoals(curDate),rem=g.cal-t.kcal;
   const cv=document.getElementById('calRem');
   cv.textContent=rem;cv.className='cv'+(rem<0?' over':rem<150?' close':'');
-  let eq='<span>'+g.cal+' goal</span>';
-  if(t.burned>0)eq+=' <span class="b">+'+t.burned+'</span>';
+  let eq='<span>'+state.goals.cal+' base</span>';
+  if(g.extra>0)eq+=' <span class="b">+'+g.extra+' '+g.kind+(g.src==='planned'?' (planned)':'')+'</span>';
   if(t.kcal>0)eq+=' <span class="n">−'+t.kcal+'</span>';
   document.getElementById('calEq').innerHTML=eq;
   [['bp','vp',t.protein,g.protein],['bc','vc',t.carbs,g.carbs],['bf','vf',t.fat,g.fat]].forEach(([b,v,cur,go])=>{
@@ -761,6 +1042,14 @@ function dash(){
   document.getElementById('fBar').style.width=pctv(t.fat,g.fat)+'%';
 }
 function wchips(){
+  const ks=document.getElementById('kindSel');
+  if(ks){
+    const cur=kindOf(curDate);
+    ks.innerHTML=['recovery','easy','long','quality'].map(k=>
+      '<button class="wtb'+(k===cur?' run':'')+'" onclick="setKind(\''+k+'\')">'+
+      k.charAt(0).toUpperCase()+k.slice(1)+'</button>').join('');
+  }
+
   const w=day(curDate).workouts,c=document.getElementById('wChips');
   if(!w.length){c.innerHTML='<div class="empty" style="padding:4px 0;text-align:left">No workouts logged yet</div>';return}
   const em={run:'🏃',lift:'🏋️',other:'⚡'};
