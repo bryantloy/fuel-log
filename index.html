@@ -395,6 +395,7 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         </div>
         <div class="lhead"><span class="lpct" id="lpct">0%</span><span style="font-size:.7rem;color:var(--mut2)" id="lcount"></span></div>
         <div class="lbar"><div class="lfill" id="lfill"></div></div>
+        <div id="swapSheet" style="display:none;padding:12px;border:1px solid var(--bd2);border-radius:12px;background:var(--surf);margin-bottom:12px"></div>
         <div id="exList"></div>
         <button class="btn" id="finBtn" onclick="finishLift()" style="width:100%;margin-top:14px">✓ FINISH &amp; LOG SESSION</button>
         <button class="favedit" onclick="resetLift()" style="width:100%;margin-top:10px;padding:8px">↺ RESET DAY</button>
@@ -535,9 +536,55 @@ let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{wei
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
 /* ═══════════ LIFT PROGRAM ═══════════ */
+
+/* Swappable alternates — same movement pattern, same slot. */
+const ALTS={
+ 'Barbell Bench Press':['Dumbbell Bench Press','Close-Grip Bench Press','Machine Chest Press'],
+ 'Weighted Pull-Up':['Lat Pulldown','Assisted Pull-Up','Neutral-Grip Pull-Up'],
+ 'Incline DB Press':['Incline Barbell Press','Incline Machine Press','Low-Incline DB Press'],
+ 'Chest-Supported Row':['Seated Cable Row','T-Bar Row','Barbell Row'],
+ 'Cable Fly':['Pec Deck','DB Fly','Low-to-High Cable Fly'],
+ 'Neutral-Grip Lat Pulldown':['Wide-Grip Pulldown','Straight-Arm Pulldown','Chest-Supported Row'],
+ 'Barbell Back Squat':['V-Squat','Hack Squat','Front Squat','Safety Bar Squat','Leg Press'],
+ 'Romanian Deadlift':['Dumbbell RDL','Good Morning','Seated Leg Curl','Cable Pull-Through'],
+ 'Leg Press':['Bulgarian Split Squat','Hack Squat','Goblet Squat','Walking Lunge'],
+ 'Walking Lunge':['Reverse Lunge','Bulgarian Split Squat','Step-Up','Split Squat'],
+ 'Lying Leg Curl':['Seated Leg Curl','Nordic Negative','Stability Ball Curl'],
+ 'Standing Calf Raise':['Seated Calf Raise','Leg Press Calf Raise','Single-Leg Calf Raise'],
+ 'Seated DB Shoulder Press':['Barbell Overhead Press','Machine Shoulder Press','Arnold Press'],
+ 'Lateral Raise':['Cable Lateral Raise','Machine Lateral Raise','Leaning Lateral Raise'],
+ 'Cable Rear Delt Fly':['Reverse Pec Deck','Bent-Over DB Fly','Face Pull'],
+ 'EZ Bar Curl':['Barbell Curl','Cable Curl','Preacher Curl','Incline DB Curl'],
+ 'Rope Pushdown':['Straight-Bar Pushdown','Skull Crusher','Overhead Cable Extension','Dip'],
+ 'Hammer Curl':['Rope Hammer Curl','Reverse Curl','Cross-Body Curl'],
+ 'Trap Bar Deadlift':['Conventional Deadlift','Sumo Deadlift','Rack Pull','Hip Thrust'],
+ 'Barbell Hip Thrust':['Machine Hip Thrust','Single-Leg Hip Thrust','Glute Bridge'],
+ 'Seated Leg Curl':['Lying Leg Curl','Nordic Negative','Single-Leg Curl'],
+ 'Back Extension':['45° Hyperextension','Reverse Hyper','Good Morning'],
+ 'Cable Pull-Through':['Kettlebell Swing','Romanian Deadlift','Banded Pull-Through'],
+ 'Hanging Leg Raise':['Captain\'s Chair Raise','Lying Leg Raise','Reverse Crunch'],
+ 'Ab Wheel Rollout':['Plank Walkout','Stability Ball Rollout','Long-Lever Plank'],
+ 'Pallof Press':['Cable Woodchop','Band Anti-Rotation Hold','Suitcase Carry'],
+ 'Copenhagen Plank':['Bent-Knee Copenhagen','Side Plank','Adductor Squeeze'],
+ 'Suitcase Carry':['Farmer Carry','Single-Arm Rack Carry','Side Plank'],
+ 'Dead Bug':['Bird Dog','Hollow Hold','Reverse Crunch']
+};
+function altsFor(name){
+  if(ALTS[name])return ALTS[name];
+  const k=Object.keys(ALTS).find(x=>name.indexOf(x)===0);
+  return k?ALTS[k]:null;
+}
+/* User's chosen swaps, persisted: {originalName: replacementName} */
+function swaps(){state.swaps=state.swaps||{};return state.swaps}
+function swapName(n){return swaps()[n]||n}
+function setSwap(orig,repl){
+  if(repl===orig)delete swaps()[orig]; else swaps()[orig]=repl;
+  save();renderLift();toast(repl===orig?'Reset to '+orig:orig+' → '+repl);
+}
+
 const PROGRAM=[
  {id:'d1',name:'Chest & Back',short:'CHEST/BACK',icon:'▰',
   gym:[
@@ -804,6 +851,21 @@ function finishLift(){
   day(curDate).workouts.push({type:'lift',desc:d.name+' ('+liftLoc+') — '+done+'/'+tot+' complete',cal:liftBurn(done*7)});
   save();render();toast('Logged to today');tab('today');
 }
+function openSwap(i){
+  const orig=lex()[i][0], list=altsFor(orig);
+  if(!list)return;
+  const cur=swapName(orig);
+  const box=document.getElementById('swapSheet');
+  box.innerHTML='<div class="st" style="margin-bottom:10px">SWAP — '+esc(orig)+'</div>'+
+    [orig].concat(list).map(n=>
+      '<button class="dbtn'+(n===cur?' on':'')+'" style="width:100%;margin-bottom:6px" '+
+      'onclick="setSwap('+JSON.stringify(orig).replace(/"/g,'&quot;')+','+JSON.stringify(n).replace(/"/g,'&quot;')+');closeSwap()">'+
+      '<div class="dn">'+esc(n)+(n===orig?' <span style="color:var(--mut2);font-weight:400">· default</span>':'')+'</div></button>').join('')+
+    '<button class="favedit" style="width:100%;padding:8px;margin-top:4px" onclick="closeSwap()">CLOSE</button>';
+  box.style.display='block';
+}
+function closeSwap(){document.getElementById('swapSheet').style.display='none'}
+
 function renderLift(){
   const sel=document.getElementById('daySel');if(!sel)return;
   sel.innerHTML=PROGRAM.map(d=>{
@@ -824,10 +886,16 @@ function renderLift(){
     const ck=dn
       ?'<svg class="exck" viewBox="0 0 21 21" fill="none"><circle cx="10.5" cy="10.5" r="10.5" fill="var(--pro)"/><path d="M6 11l3 3 6-6.5" stroke="#0a0a0a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       :'<svg class="exck" viewBox="0 0 21 21" fill="none"><circle cx="10.5" cy="10.5" r="9.5" stroke="var(--pro)" stroke-width="1.5" opacity=".35"/></svg>';
-    return '<div class="ex'+(dn?' done':'')+'" onclick="toggleEx('+i+')">'+ck+
-      '<div style="flex:1"><div class="exn">'+esc(e[0])+'</div>'+
+    const orig=e[0], shown=swapName(orig), swapped=shown!==orig;
+    const hasAlts=!!altsFor(orig);
+    return '<div class="ex'+(dn?' done':'')+'">'+
+      '<div onclick="toggleEx('+i+')" style="display:flex;gap:12px;flex:1">'+ck+
+      '<div style="flex:1"><div class="exn">'+esc(shown)+
+        (swapped?' <span style="color:var(--mut2);font-size:.62rem">↔ '+esc(orig)+'</span>':'')+'</div>'+
       '<div class="exm">'+e[1]+'  ·  rest '+e[2]+'</div>'+
-      '<div class="exc">'+esc(e[3])+'</div></div></div>';
+      '<div class="exc">'+esc(e[3])+'</div></div></div>'+
+      (hasAlts?'<button onclick="event.stopPropagation();openSwap('+i+')" style="background:none;border:none;color:'+(swapped?'var(--pro)':'var(--mut2)')+';font-size:1rem;padding:0 2px;align-self:center">⇄</button>':'')+
+      '</div>';
   }).join('');
 }
 
