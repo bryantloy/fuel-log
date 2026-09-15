@@ -8,9 +8,20 @@ const PHOTO_PROMPT = `You are a nutrition estimation expert analyzing a photo of
 Identify every distinct food and drink item visible. Estimate portions using visual
 references (dinner plate ~10-11in, fork ~7in, standard can/bottle, hand, packaging).
 
+FIRST: check whether the image shows PRINTED NUTRITION DATA rather than a plate of food.
+That includes restaurant app order screens, menu boards with calorie counts, Nutrition Facts
+panels, and product packaging. If printed numbers are visible, USE THEM VERBATIM — do not
+re-estimate. Published restaurant and label figures beat any visual estimate. Read each line
+item with its own printed values, and if only calories are printed, estimate the macro split
+but keep the printed calorie number exactly as shown.
+
+Otherwise, estimate from the photo using the rules below.
+
 Rules:
 - One line item per distinct food. Do NOT merge a plate into a single entry.
 - Account for visible preparation: breading, frying oil, sauces, butter, dressing, glaze.
+- Breaded and deep-fried items absorb substantial oil. Do not under-count them; a fried
+  portion typically runs well above the same weight of grilled equivalent.
 - If a dipping sauce, dressing cup, or condiment is visible, list it as its own item.
 - Use realistic restaurant/home portions, not idealized "serving size" numbers.
 - kcal must be consistent with 4/4/9 cal per gram of protein/carbs/fat (within ~10%).
@@ -23,12 +34,19 @@ Return ONLY minified JSON. No markdown fences, no prose before or after:
 const TEXT_PROMPT = (q) => `You are a nutrition database. Estimate macros for: "${q}"
 
 Rules:
+- When the user names a specific chain restaurant item, use that chain's OFFICIAL published
+  nutrition for the stated quantity rather than a generic estimate. Scale per-item figures
+  to the count given (e.g. 10 strips = 10x the published per-strip values).
+- Breaded and deep-fried chain items run higher than intuition suggests. Do not under-count.
 - Break into separate line items if the user described multiple foods.
 - If quantity is unspecified, assume one typical serving and say so in the note.
 - kcal must be consistent with 4/4/9 cal per gram of protein/carbs/fat.
+- sodium is milligrams for the portion. Always estimate it, never leave it at 0 unless the
+  food genuinely contains almost none (plain produce, plain rice, water). Restaurant food,
+  processed food, cheese, bread, cured meat and anything salted in cooking run high.
 
 Return ONLY minified JSON. No markdown fences, no prose:
-{"items":[{"name":"...","portion":"...","protein":0,"carbs":0,"fat":0,"kcal":0,"confidence":"high"}],"note":"..."}`;
+{"items":[{"name":"...","portion":"...","protein":0,"carbs":0,"fat":0,"kcal":0,"sodium":0,"confidence":"high"}],"note":"..."}`;
 
 async function callAnthropic(key, body) {
   let lastErr = null;
@@ -53,6 +71,38 @@ async function callAnthropic(key, body) {
   throw e;
 }
 
+function repairJson(raw) {
+  return raw
+    // missing comma between adjacent objects or arrays
+    .replace(/\}\s*\{/g, "},{")
+    .replace(/\]\s*\[/g, "],[")
+    // missing comma between a closing brace and the next key
+    .replace(/\}\s*"(?=[^"]*"\s*:)/g, '},"')
+    // trailing commas before a close
+    .replace(/,\s*([\]}])/g, "$1")
+    // stray single quotes around keys
+    .replace(/([{,]\s*)'([^']+)'\s*:/g, '$1"$2":');
+}
+
+function closeTruncated(raw) {
+  // If the model got cut off mid-structure, close what is still open.
+  let depth = 0, inStr = false, esc = false;
+  const stack = [];
+  for (const ch of raw) {
+    if (esc) { esc = false; continue; }
+    if (ch === "\\") { esc = true; continue; }
+    if (ch === '"') { inStr = !inStr; continue; }
+    if (inStr) continue;
+    if (ch === "{" || ch === "[") stack.push(ch);
+    else if (ch === "}" || ch === "]") stack.pop();
+  }
+  if (!stack.length) return raw;
+  let out = raw.replace(/,\s*$/, "");
+  if (inStr) out += '"';
+  while (stack.length) out += stack.pop() === "{" ? "}" : "]";
+  return out;
+}
+
 function extractJson(data) {
   const text = (data.content || [])
     .filter((b) => b.type === "text")
@@ -62,8 +112,16 @@ function extractJson(data) {
   const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   const start = cleaned.indexOf("{");
   const end = cleaned.lastIndexOf("}");
-  if (start === -1 || end === -1) throw new Error("Model did not return JSON");
-  return JSON.parse(cleaned.slice(start, end + 1));
+  if (start === -1) throw new Error("Model did not return JSON");
+  const slice = end > start ? cleaned.slice(start, end + 1) : cleaned.slice(start);
+
+  const attempts = [slice, repairJson(slice), closeTruncated(slice), repairJson(closeTruncated(slice))];
+  for (const a of attempts) {
+    try { return JSON.parse(a); } catch (_) { /* next */ }
+  }
+  const err = new Error("PARSE_FAILED");
+  err.raw = slice.slice(0, 400);
+  throw err;
 }
 
 function sanitize(parsed) {
@@ -79,6 +137,7 @@ function sanitize(parsed) {
       carbs: num(it.carbs),
       fat: num(it.fat),
       kcal: num(it.kcal),
+      sodium: num(it.sodium),
       confidence: ["high", "medium", "low"].includes(it.confidence) ? it.confidence : "medium",
     }))
     .filter((it) => it.protein + it.carbs + it.fat + it.kcal > 0);
@@ -224,7 +283,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Send either image or query" });
     }
 
-    const { data } = await callAnthropic(key, { max_tokens: 1200, messages });
+    const { data } = await callAnthropic(key, { max_tokens: 2000, messages });
 
     if (body.mode === "workout") {
       const r = sanitizeWorkout(extractJson(data));
@@ -234,7 +293,26 @@ export default async function handler(req, res) {
       return res.status(200).json(r);
     }
 
-    const parsed = sanitize(extractJson(data));
+    let parsed;
+    try {
+      parsed = sanitize(extractJson(data));
+    } catch (e) {
+      if (e.message !== "PARSE_FAILED") throw e;
+      const retry = await callAnthropic(key, {
+        max_tokens: 2000,
+        messages: [
+          ...messages,
+          { role: "assistant", content: "{" },
+        ],
+      });
+      const rd = retry.data;
+      if (rd && Array.isArray(rd.content)) {
+        rd.content = rd.content.map((b) =>
+          b.type === "text" ? { ...b, text: "{" + b.text } : b
+        );
+      }
+      parsed = sanitize(extractJson(rd));
+    }
 
     if (!parsed.items.length) {
       return res.status(200).json({ items: [], note: "Nothing recognizable found. Try a clearer photo or type it instead." });
@@ -246,7 +324,9 @@ export default async function handler(req, res) {
       error:
         status === 401
           ? "API key rejected. It may have been revoked — create a new one and update the Vercel env var."
-          : err.message || "Analysis failed",
+          : err.message === "PARSE_FAILED"
+            ? "Could not read the response. Try again, or reword it."
+            : err.message || "Analysis failed",
     });
   }
 }

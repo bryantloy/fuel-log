@@ -389,6 +389,9 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
       <div class="sec">
         <div class="sh"><div class="st">TRAINING DAY</div></div>
         <div class="dsel" id="daySel"></div>
+        <div style="font-size:.66rem;color:var(--mut2);margin:-4px 0 12px;line-height:1.5">
+          <span style="color:var(--pro)">★</span> anchors drive the adaptation — hit these every session, then fill with whatever you like. Tap <span style="color:var(--pro)">⇄</span> to swap any lift.
+        </div>
         <div class="loc">
           <button id="loc-gym" onclick="setLoc('gym')">GYM</button>
           <button id="loc-home" onclick="setLoc('home')">HOME</button>
@@ -426,6 +429,8 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         <div class="gt">DATA</div>
         <div class="util">
           <button onclick="exportData()">⬇ Backup</button>
+          <button onclick="exportCSV()">⬇ CSV</button>
+          <button onclick="exportLiftCSV()">⬇ Lifts CSV</button>
           <button onclick="document.getElementById('impIn').click()">⬆ Restore</button>
         </div>
         <input type="file" accept="application/json" id="impIn" style="display:none">
@@ -536,7 +541,7 @@ let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{wei
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.wlog=p.wlog||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
 /* ═══════════ LIFT PROGRAM ═══════════ */
 
@@ -546,9 +551,9 @@ const ALTS={
  'Weighted Pull-Up':['Lat Pulldown','Assisted Pull-Up','Neutral-Grip Pull-Up'],
  'Incline DB Press':['Incline Barbell Press','Incline Machine Press','Low-Incline DB Press'],
  'Chest-Supported Row':['Seated Cable Row','T-Bar Row','Barbell Row'],
- 'Cable Fly':['Pec Deck','DB Fly','Low-to-High Cable Fly'],
+ 'Cable Fly':['Pec Deck','DB Fly','Low-to-High Cable Fly','Machine Chest Fly'],
  'Neutral-Grip Lat Pulldown':['Wide-Grip Pulldown','Straight-Arm Pulldown','Chest-Supported Row'],
- 'Barbell Back Squat':['V-Squat','Hack Squat','Front Squat','Safety Bar Squat','Leg Press'],
+ 'Back Squat':['V-Squat','Hack Squat','Front Squat','Safety Bar Squat','Leg Press'],
  'Romanian Deadlift':['Dumbbell RDL','Good Morning','Seated Leg Curl','Cable Pull-Through'],
  'Leg Press':['Bulgarian Split Squat','Hack Squat','Goblet Squat','Walking Lunge'],
  'Walking Lunge':['Reverse Lunge','Bulgarian Split Squat','Step-Up','Split Squat'],
@@ -557,7 +562,7 @@ const ALTS={
  'Seated DB Shoulder Press':['Barbell Overhead Press','Machine Shoulder Press','Arnold Press'],
  'Lateral Raise':['Cable Lateral Raise','Machine Lateral Raise','Leaning Lateral Raise'],
  'Cable Rear Delt Fly':['Reverse Pec Deck','Bent-Over DB Fly','Face Pull'],
- 'EZ Bar Curl':['Barbell Curl','Cable Curl','Preacher Curl','Incline DB Curl'],
+ 'EZ Bar Curl':['Dumbbell Curl (supinated)','Barbell Curl','Cable Curl','Preacher Curl','Incline DB Curl'],
  'Rope Pushdown':['Straight-Bar Pushdown','Skull Crusher','Overhead Cable Extension','Dip'],
  'Hammer Curl':['Rope Hammer Curl','Reverse Curl','Cross-Body Curl'],
  'Trap Bar Deadlift':['Conventional Deadlift','Sumo Deadlift','Rack Pull','Hip Thrust'],
@@ -565,12 +570,38 @@ const ALTS={
  'Seated Leg Curl':['Lying Leg Curl','Nordic Negative','Single-Leg Curl'],
  'Back Extension':['45° Hyperextension','Reverse Hyper','Good Morning'],
  'Cable Pull-Through':['Kettlebell Swing','Romanian Deadlift','Banded Pull-Through'],
- 'Hanging Leg Raise':['Captain\'s Chair Raise','Lying Leg Raise','Reverse Crunch'],
- 'Ab Wheel Rollout':['Plank Walkout','Stability Ball Rollout','Long-Lever Plank'],
+ 'Hanging Leg Raise':['Cable Crunch','Lying Leg Raise','Captain\'s Chair Raise','Seated Bicycle','Reverse Crunch'],
+ 'Ab Wheel Rollout':['Cable Crunch','Plank Walkout','Stability Ball Rollout','Long-Lever Plank'],
  'Pallof Press':['Cable Woodchop','Band Anti-Rotation Hold','Suitcase Carry'],
  'Copenhagen Plank':['Bent-Knee Copenhagen','Side Plank','Adductor Squeeze'],
  'Suitcase Carry':['Farmer Carry','Single-Arm Rack Carry','Side Plank'],
- 'Dead Bug':['Bird Dog','Hollow Hold','Reverse Crunch']
+ 'DB Floor Press':['Floor Press (neutral grip)','Incline DB Press','Push-Up (feet elevated)'],
+ 'Single-Arm DB Row':['Chest-Supported DB Row','Renegade Row','Band Row'],
+ 'DB Fly on Bench':['Pec Deck','Cable Fly','Floor Fly'],
+ 'Band Pull-Apart':['Bent-Over DB Rear Delt Fly','Face Pull','Reverse Pec Deck'],
+ 'Band Face Pull':['Band Pull-Apart','Bent-Over DB Rear Delt Fly'],
+ 'Face Pull':['Reverse Pec Deck','Band Pull-Apart','Bent-Over DB Rear Delt Fly'],
+ 'Bulgarian Split Squat':['Reverse Lunge','Split Squat','Step-Up','Walking Lunge'],
+ 'Single-Leg RDL':['Dumbbell RDL','B-Stance RDL','Single-Leg Hip Hinge'],
+ '1.5-Rep Goblet Squat':['Goblet Squat','Front Squat (KB rack)','Heels-Elevated Goblet Squat'],
+ 'Bench Step-Up':['Reverse Lunge','Box Step-Up','Split Squat'],
+ 'KB Swing':['Cable Pull-Through','KB Deadlift','Romanian Deadlift'],
+ 'KB Deadlift':['Dumbbell RDL','Trap Bar Deadlift','Single-Leg RDL'],
+ 'Bench Hip Thrust':['Glute Bridge','Single-Leg Hip Thrust','Barbell Hip Thrust'],
+ 'Nordic Negative':['Lying Leg Curl','Stability Ball Curl','Slider Leg Curl'],
+ 'Glute Bridge March':['Single-Leg Glute Bridge','Dead Bug','Bird Dog'],
+ 'Single-Leg Calf Raise':['Standing Calf Raise','Seated Calf Raise','Step Calf Raise'],
+ 'Bent-Over DB Rear Delt Fly':['Reverse Pec Deck','Cable Rear Delt Fly','Band Pull-Apart'],
+ 'Skull Crusher':['Overhead EZ Bar Extension','Rope Pushdown','Close-Grip Push-Up'],
+ 'Overhead EZ Bar Extension':['Skull Crusher','Overhead DB Extension','Rope Pushdown'],
+ 'Overhead Cable Extension':['Skull Crusher','Overhead DB Extension','Rope Pushdown'],
+ 'KB Halo':['KB Around-the-World','Pallof Press','Band Anti-Rotation Hold'],
+ 'Side Plank':['Copenhagen Plank','KB Side Bend','Suitcase Carry'],
+ 'Ab Wheel / Plank Walkout':['Cable Crunch','Long-Lever Plank','Stability Ball Rollout'],
+ 'Plank + Dead Bug':['Seated Bicycle','Lying Leg Raise','Hollow Hold'],
+ 'Dead Bug':['Seated Bicycle','Lying Leg Raise','Bird Dog','Hollow Hold'],
+ 'KB Side Bend':['Suitcase Carry','Side Plank','Cable Side Bend'],
+ 'KB Around-the-World':['Halo','Woodchop','Russian Twist (light)']
 };
 function altsFor(name){
   if(ALTS[name])return ALTS[name];
@@ -579,11 +610,39 @@ function altsFor(name){
 }
 /* User's chosen swaps, persisted: {originalName: replacementName} */
 function swaps(){state.swaps=state.swaps||{};return state.swaps}
+/* Per-exercise weight history: {exerciseName:[{d:'YYYY-MM-DD',w:55}]} */
+function wlog(){state.wlog=state.wlog||{};return state.wlog}
+function lastWeight(n){const h=wlog()[n];return h&&h.length?h[h.length-1]:null}
+function setWeight(n,w){
+  if(!w){return}
+  const h=wlog()[n]=wlog()[n]||[];
+  const today=curDate;
+  const existing=h.find(x=>x.d===today);
+  if(existing)existing.w=w; else h.push({d:today,w});
+  if(h.length>60)h.splice(0,h.length-60);
+  save();renderLift();
+}
+function promptWeight(i){
+  const orig=lex()[i][0], name=swapName(orig);
+  const last=lastWeight(name);
+  const v=prompt('Weight for '+name+(last?'  (last: '+last.w+')':''), last?last.w:'');
+  if(v===null)return;
+  const n=parseFloat(v);
+  if(!isNaN(n)&&n>0)setWeight(name,n); else if(v===''){delete wlog()[name];save();renderLift()}
+}
 function swapName(n){return swaps()[n]||n}
 function setSwap(orig,repl){
   if(repl===orig)delete swaps()[orig]; else swaps()[orig]=repl;
   save();renderLift();toast(repl===orig?'Reset to '+orig:orig+' → '+repl);
 }
+
+const STARS=new Set([
+ 'Barbell Bench Press','DB Floor Press','Weighted Pull-Up',
+ 'Back Squat','Bulgarian Split Squat','Romanian Deadlift','Single-Leg RDL',
+ 'Seated DB Shoulder Press','Lateral Raise',
+ 'Trap Bar Deadlift','KB Deadlift','Barbell Hip Thrust','Bench Hip Thrust','Copenhagen Plank'
+]);
+function isStar(n){return STARS.has(n)}
 
 const PROGRAM=[
  {id:'d1',name:'Chest & Back',short:'CHEST/BACK',icon:'▰',
@@ -618,7 +677,7 @@ const PROGRAM=[
    ['Lying Leg Curl','3×12','60s','Hamstring insurance for the calf'],
    ['Standing Calf Raise','4×15','60s','Pause at the top'],
    ['Dead Bug','3×10 ea','45s','Low back glued to the floor'],
-   ['Suitcase Carry','3×40 yd ea','60s','One heavy DB — do not lean']
+   ['KB Side Bend','3×12 ea','45s','Elbow toward the opposite hip, slow']
   ],
   home:[
    ['Bulgarian Split Squat','4×10 ea','2 min','Rear foot on bench, 45s in hand'],
@@ -628,7 +687,7 @@ const PROGRAM=[
    ['KB Swing','4×15','60s','45 KB, hips not arms'],
    ['Single-Leg Calf Raise','3×20 ea','45s','Off a step if you have one'],
    ['Dead Bug','3×10 ea','45s','Low back glued to the floor'],
-   ['KB Suitcase Carry','3×40 steps ea','60s','45 KB, stay square']
+   ['KB Side Bend','3×12 ea','45s','Elbow toward the opposite hip, slow']
   ]},
  {id:'d3',name:'Shoulders, Arms & Core',short:'SHLDR/ARMS',icon:'◆',
   gym:[
@@ -640,7 +699,8 @@ const PROGRAM=[
    ['Hammer Curl','3×12','60s','Neutral grip'],
    ['Overhead Cable Extension','3×12','60s','Long head of the tricep'],
    ['Pallof Press','3×12 ea','45s','Anti-rotation'],
-   ['Hanging Leg Raise','3×12','60s','Controlled, no swing']
+   ['Hanging Leg Raise','3×12','60s','Controlled, no swing'],
+   ['KB Around-the-World','1 min ea way','45s','20 KB, smooth circles, hips still']
   ],
   home:[
    ['Seated DB Shoulder Press','4×10','2 min','Bench upright, 45s'],
@@ -651,6 +711,7 @@ const PROGRAM=[
    ['Hammer Curl','3×12','60s','Neutral grip'],
    ['Overhead EZ Bar Extension','3×12','60s','Seated on bench'],
    ['KB Halo','3×10 ea','45s','20 KB, slow circles'],
+   ['KB Around-the-World','1 min ea way','45s','20 KB, smooth circles, hips still'],
    ['Plank + Dead Bug','3 rds','60s','45s plank into 10 dead bugs']
   ]},
  {id:'d4',name:'Posterior & Glutes',short:'POSTERIOR',icon:'▼',
@@ -887,13 +948,18 @@ function renderLift(){
       ?'<svg class="exck" viewBox="0 0 21 21" fill="none"><circle cx="10.5" cy="10.5" r="10.5" fill="var(--pro)"/><path d="M6 11l3 3 6-6.5" stroke="#0a0a0a" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
       :'<svg class="exck" viewBox="0 0 21 21" fill="none"><circle cx="10.5" cy="10.5" r="9.5" stroke="var(--pro)" stroke-width="1.5" opacity=".35"/></svg>';
     const orig=e[0], shown=swapName(orig), swapped=shown!==orig;
-    const hasAlts=!!altsFor(orig);
+    const hasAlts=!!altsFor(orig), star=isStar(orig);
+    const lw=lastWeight(shown);
+    const wchip='<button onclick="event.stopPropagation();promptWeight('+i+')" '+
+      'style="background:'+(lw?'var(--surf2)':'transparent')+';border:1px solid '+(lw?'var(--pro)':'var(--bd2)')+
+      ';color:'+(lw?'var(--pro)':'var(--mut2)')+';border-radius:8px;font-family:\'DM Mono\',monospace;'+
+      'font-size:.62rem;padding:4px 8px;margin-top:6px">'+(lw?lw.w+' lb':'+ log weight')+'</button>';
     return '<div class="ex'+(dn?' done':'')+'">'+
       '<div onclick="toggleEx('+i+')" style="display:flex;gap:12px;flex:1">'+ck+
-      '<div style="flex:1"><div class="exn">'+esc(shown)+
+      '<div style="flex:1"><div class="exn">'+(star?'<span style="color:var(--pro)">★</span> ':'')+esc(shown)+
         (swapped?' <span style="color:var(--mut2);font-size:.62rem">↔ '+esc(orig)+'</span>':'')+'</div>'+
       '<div class="exm">'+e[1]+'  ·  rest '+e[2]+'</div>'+
-      '<div class="exc">'+esc(e[3])+'</div></div></div>'+
+      '<div class="exc">'+esc(e[3])+'</div>'+wchip+'</div></div>'+
       (hasAlts?'<button onclick="event.stopPropagation();openSwap('+i+')" style="background:none;border:none;color:'+(swapped?'var(--pro)':'var(--mut2)')+';font-size:1rem;padding:0 2px;align-self:center">⇄</button>':'')+
       '</div>';
   }).join('');
@@ -1080,7 +1146,8 @@ function addAll(){
   pending.forEach(it=>day(curDate).foods.push({
     name:it.name,portion:it.portion||'',
     protein:Math.round(it.protein*it.mult),carbs:Math.round(it.carbs*it.mult),
-    fat:Math.round(it.fat*it.mult),kcal:Math.round(it.kcal*it.mult),meal
+    fat:Math.round(it.fat*it.mult),kcal:Math.round(it.kcal*it.mult),
+    sodium:Math.round((it.sodium||0)*it.mult),meal
   }));
   save();
   const n=pending.length;
@@ -1132,6 +1199,50 @@ function fillGoals(){adaptUI();
     _h.style.color=on?'#7dd3fc':'var(--mut2)';_h.style.borderColor=on?'#7dd3fc':'var(--bd2)';}const g=state.goals;
   document.getElementById('gCal').value=g.cal;document.getElementById('gPro').value=g.protein;
   document.getElementById('gCarb').value=g.carbs;document.getElementById('gFat').value=g.fat}
+function dl(name,text,mime){
+  const blob=new Blob([text],{type:mime});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function q(v){const t=String(v==null?'':v);return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t}
+
+function exportCSV(){
+  const hdr=['date','kcal','protein_g','carbs_g','fat_g','sodium_mg',
+             'kcal_goal','protein_goal','carbs_goal','fat_goal','sodium_goal',
+             'session_type','run_miles','burn_kcal','workouts','lift_day','lift_done','lift_total','bodyweight_lb'];
+  const rows=[hdr.join(',')];
+  Object.keys(state.days).sort().forEach(k=>{
+    const d=state.days[k], t=totals(k), g=effGoals(k);
+    const lifts=Object.entries(d.lift||{}).filter(([,v])=>v&&v.some(Boolean));
+    let ld='',done=0,tot=0;
+    if(lifts.length){
+      const [key,arr]=lifts[0];
+      const [did,loc]=key.split('_');
+      const prog=PROGRAM.find(x=>x.id===did);
+      ld=prog?prog.name+' ('+loc+')':key;
+      done=arr.filter(Boolean).length; tot=prog?prog[loc].length:arr.length;
+    }
+    rows.push([k,t.kcal,t.protein,t.carbs,t.fat,t.sodium,
+      state.goals.cal,state.goals.protein,state.goals.carbs,state.goals.fat,sodiumGoal(k),
+      kindOf(k),milesToday(k),t.burned,
+      q((d.workouts||[]).map(w=>w.desc).join(' | ')),
+      q(ld),done,tot,wt()].join(','));
+  });
+  dl('fuellog-daily-'+todayKey()+'.csv',rows.join('\n'),'text/csv');
+  toast('Daily CSV downloaded');
+}
+
+function exportLiftCSV(){
+  const rows=['date,exercise,weight_lb'];
+  Object.entries(wlog()).forEach(([name,hist])=>
+    (hist||[]).forEach(e=>rows.push([e.d,q(name),e.w].join(','))));
+  if(rows.length===1){toast('No lift weights logged yet');return}
+  rows.splice(1,0,...[]);
+  const body=rows.slice(1).sort().join('\n');
+  dl('fuellog-lifts-'+todayKey()+'.csv',rows[0]+'\n'+body,'text/csv');
+  toast('Lift CSV downloaded');
+}
+
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
