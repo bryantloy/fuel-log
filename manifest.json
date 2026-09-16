@@ -1,7 +1,7 @@
 {
-  "name": "FUEL.LOG",
-  "short_name": "FUEL.LOG",
-  "description": "Photo-based macro and workout tracker",
+  "name": "BUILD.LOG \u2014 Fuel, Lift, Run",
+  "short_name": "BUILD.LOG",
+  "description": "Personal training and nutrition tracker: macros, sodium, lifts and running in one place.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
