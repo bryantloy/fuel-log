@@ -414,6 +414,16 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
         <div class="gr"><label><span class="dot" style="background:var(--fat)"></span>Fat (g)</label><input type="number" inputmode="numeric" id="gFat"></div>
         <div class="gr"><label><span class="dot" style="background:var(--fat)"></span>Bodyweight (lb)</label><input type="number" inputmode="numeric" id="gWt"></div>
         <div class="gr"><label><span class="dot" style="background:#7dd3fc"></span>Sweat sodium (mg/hr)</label><input type="number" inputmode="numeric" id="gNa"></div>
+        <div style="margin:14px 0 4px">
+          <label style="display:block;font-size:.72rem;color:var(--mut);margin-bottom:6px">
+            <span class="dot" style="background:var(--pro)"></span>How you cook &amp; eat
+          </label>
+          <textarea id="gNotes" rows="4" style="width:100%;resize:vertical"
+            placeholder="e.g. I air fry with no added oil. Portions run large."></textarea>
+          <div style="font-size:.62rem;color:var(--mut2);margin-top:5px;line-height:1.5">
+            Sent with every photo and typed food so estimates match your kitchen. Ignored for restaurant photos.
+          </div>
+        </div>
         <div class="gr" style="align-items:center">
           <label><span class="dot" style="background:#7dd3fc"></span>Hot / humid conditions</label>
           <button id="hotBtn" onclick="toggleHot()" style="padding:7px 14px;border-radius:9px;border:1px solid var(--bd2);background:var(--surf);color:var(--mut);font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:1px"></button>
@@ -537,7 +547,7 @@ const DEFAULT_FAVS=[
   {name:'Instant ICEE Blue Raspberry',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:10,sodium:500},
   {name:'Waterboy Weekend Recovery',portion:'1 stick',protein:0,carbs:1,fat:0,kcal:10,sodium:1120}
 ];
-let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{weightLb:175,sweatNa:800,hot:true},days:{},favs:null};
+let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{weightLb:175,sweatNa:800,hot:true,notes:'I air fry most vegetables and proteins with no added oil beyond what is already on frozen items. I rarely add butter or oil when cooking at home. My portions run larger than standard serving sizes — assume a generous plate.'},days:{},favs:null};
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
@@ -613,22 +623,41 @@ function swaps(){state.swaps=state.swaps||{};return state.swaps}
 /* Per-exercise weight history: {exerciseName:[{d:'YYYY-MM-DD',w:55}]} */
 function wlog(){state.wlog=state.wlog||{};return state.wlog}
 function lastWeight(n){const h=wlog()[n];return h&&h.length?h[h.length-1]:null}
-function setWeight(n,w){
-  if(!w){return}
+function parseSets(str){
+  const txt=String(str).trim();
+  if(!txt)return null;
+  const sets=[];
+  // weight x reps, in any separator style
+  const re=/([\d.]+)\s*(?:x|\*|@)\s*(\d+)/gi;
+  let m;
+  while((m=re.exec(txt))!==null)sets.push({w:parseFloat(m[1]),r:parseInt(m[2],10)});
+  if(!sets.length){
+    // bare weights only
+    (txt.match(/[\d.]+/g)||[]).forEach(w=>sets.push({w:parseFloat(w),r:null}));
+  }
+  if(!sets.length||sets.some(x=>!isFinite(x.w)))return null;
+  return {sets,top:Math.max(...sets.map(x=>x.w)),
+          vol:sets.reduce((a,x)=>a+(x.r?x.w*x.r:0),0), raw:txt};
+}
+function fmtSets(e){return !e?'':(e.s||e.w+' lb')}
+function setWeight(n,parsed){
   const h=wlog()[n]=wlog()[n]||[];
-  const today=curDate;
-  const existing=h.find(x=>x.d===today);
-  if(existing)existing.w=w; else h.push({d:today,w});
+  const existing=h.find(x=>x.d===curDate);
+  const rec={d:curDate,w:parsed.top,s:parsed.raw,v:parsed.vol};
+  if(existing)Object.assign(existing,rec); else h.push(rec);
   if(h.length>60)h.splice(0,h.length-60);
   save();renderLift();
 }
 function promptWeight(i){
   const orig=lex()[i][0], name=swapName(orig);
   const last=lastWeight(name);
-  const v=prompt('Weight for '+name+(last?'  (last: '+last.w+')':''), last?last.w:'');
+  const v=prompt(name+'\n\nSets \u2014 "55", "55x10", or "45x10, 50x8, 55x6"'+
+                 (last?'\n\nLast time: '+fmtSets(last):''), last?(last.s||last.w):'');
   if(v===null)return;
-  const n=parseFloat(v);
-  if(!isNaN(n)&&n>0)setWeight(name,n); else if(v===''){delete wlog()[name];save();renderLift()}
+  if(v.trim()===''){delete wlog()[name];save();renderLift();toast('Cleared');return}
+  const parsed=parseSets(v);
+  if(!parsed){toast('Could not read that \u2014 try 55x10');return}
+  setWeight(name,parsed);toast(name+' \u2014 '+parsed.raw);
 }
 function swapName(n){return swaps()[n]||n}
 function setSwap(orig,repl){
@@ -953,7 +982,7 @@ function renderLift(){
     const wchip='<button onclick="event.stopPropagation();promptWeight('+i+')" '+
       'style="background:'+(lw?'var(--surf2)':'transparent')+';border:1px solid '+(lw?'var(--pro)':'var(--bd2)')+
       ';color:'+(lw?'var(--pro)':'var(--mut2)')+';border-radius:8px;font-family:\'DM Mono\',monospace;'+
-      'font-size:.62rem;padding:4px 8px;margin-top:6px">'+(lw?lw.w+' lb':'+ log weight')+'</button>';
+      'font-size:.62rem;padding:4px 8px;margin-top:6px">'+(lw?esc(fmtSets(lw)):'+ log sets')+'</button>';
     return '<div class="ex'+(dn?' done':'')+'">'+
       '<div onclick="toggleEx('+i+')" style="display:flex;gap:12px;flex:1">'+ck+
       '<div style="flex:1"><div class="exn">'+(star?'<span style="color:var(--pro)">★</span> ':'')+esc(shown)+
@@ -1037,7 +1066,7 @@ async function analyzePhoto(){
   if(!photoB64)return;
   busy('Reading your plate…');hideErr();hideRes();
   try{
-    const r=await post({image:photoB64,mediaType:'image/jpeg',pantry:favs()});
+    const r=await post({image:photoB64,mediaType:'image/jpeg',pantry:favs(),notes:(state.profile&&state.profile.notes)||''});
     unbusy();showItems(r,'IN THIS PHOTO');
   }catch(err){unbusy();showErr(err.message)}
 }
@@ -1073,7 +1102,7 @@ async function lookupText(){
   busy('Estimating macros…');hideErr();hideRes();
   document.getElementById('qGo').disabled=true;
   try{
-    const r=await post({pantry:favs(),query:q});
+    const r=await post({pantry:favs(),notes:(state.profile&&state.profile.notes)||'',query:q});
     unbusy();showItems(r,'ESTIMATED');
   }catch(err){
     unbusy();
@@ -1118,8 +1147,8 @@ function renderItems(){
     const mb=[[.5,'&frac12;'],[1,'1'],[1.5,'1&frac12;'],[2,'2']].map(([v,l])=>
       '<button class="mu'+(Math.abs(it.mult-v)<.01?' on':'')+'" onclick="setMult('+i+','+v+')">'+l+'</button>').join('');
     const ed=it.edit?'<div class="edit">'+
-      [['protein','P','var(--pro)'],['carbs','C','var(--carb)'],['fat','F','var(--fat)'],['kcal','cal','#888']].map(([k,l,c])=>
-      '<label><span style="color:'+c+'">'+l+'</span><input type="number" inputmode="numeric" value="'+it[k]+'" onchange="setField('+i+',\''+k+'\',this.value)"></label>').join('')+
+      [['protein','P','var(--pro)'],['carbs','C','var(--carb)'],['fat','F','var(--fat)'],['kcal','cal','#888'],['sodium','mg','#7dd3fc']].map(([k,l,c])=>
+      '<label><span style="color:'+c+'">'+l+'</span><input type="number" inputmode="numeric" value="'+(it[k]||0)+'" onchange="setField('+i+',\''+k+'\',this.value)"></label>').join('')+
       '</div>':'';
     return '<div class="it fu"><div class="itop"><div><div class="inm">'+esc(it.name)+'</div>'+
       (it.portion?'<div class="ipo">'+esc(it.portion)+'</div>':'')+'</div>'+
@@ -1129,6 +1158,7 @@ function renderItems(){
       '<div class="im"><div class="imv" style="color:var(--carb)">'+m(it.carbs)+'</div><div class="iml">CARBS</div></div>'+
       '<div class="im"><div class="imv" style="color:var(--fat)">'+m(it.fat)+'</div><div class="iml">FAT</div></div>'+
       '<div class="im"><div class="imv" style="color:#888">'+m(it.kcal)+'</div><div class="iml">KCAL</div></div>'+
+      '<div class="im"><div class="imv" style="color:#7dd3fc">'+m(it.sodium||0)+'</div><div class="iml">SODIUM</div></div>'+
       '</div>'+ed+
       '<div class="iact"><div class="mult">'+mb+'</div>'+
       '<button class="ied" onclick="toggleEdit('+i+')">'+(it.edit?'Done':'Edit')+'</button>'+
@@ -1188,12 +1218,13 @@ function saveGoals(){
     protein:+document.getElementById('gPro').value||170,
     carbs:+document.getElementById('gCarb').value||250,
     fat:+document.getElementById('gFat').value||75};
-  state.profile={...state.profile,weightLb:+document.getElementById('gWt').value||175,sweatNa:+document.getElementById('gNa').value||800};
+  state.profile={...state.profile,weightLb:+document.getElementById('gWt').value||175,sweatNa:+document.getElementById('gNa').value||800,notes:document.getElementById('gNotes').value.slice(0,600)};
   save();render();toast('Goals saved');
 }
 function fillGoals(){adaptUI();
   const _w=document.getElementById('gWt');if(_w)_w.value=wt();
   const _n=document.getElementById('gNa');if(_n)_n.value=(state.profile&&state.profile.sweatNa)||800;
+  const _nt=document.getElementById('gNotes');if(_nt)_nt.value=(state.profile&&state.profile.notes)||'';
   const _h=document.getElementById('hotBtn');
   if(_h){const on=!!(state.profile&&state.profile.hot);_h.textContent=on?'ON':'OFF';
     _h.style.color=on?'#7dd3fc':'var(--mut2)';_h.style.borderColor=on?'#7dd3fc':'var(--bd2)';}const g=state.goals;
@@ -1233,9 +1264,9 @@ function exportCSV(){
 }
 
 function exportLiftCSV(){
-  const rows=['date,exercise,weight_lb'];
+  const rows=['date,exercise,top_weight_lb,sets,volume_lb'];
   Object.entries(wlog()).forEach(([name,hist])=>
-    (hist||[]).forEach(e=>rows.push([e.d,q(name),e.w].join(','))));
+    (hist||[]).forEach(e=>rows.push([e.d,q(name),e.w,q(e.s||''),e.v||''].join(','))));
   if(rows.length===1){toast('No lift weights logged yet');return}
   rows.splice(1,0,...[]);
   const body=rows.slice(1).sort().join('\n');
