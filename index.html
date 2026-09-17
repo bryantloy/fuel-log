@@ -124,6 +124,7 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 .edit{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:9px}
 .edit label{font-family:'DM Mono',monospace;font-size:.55rem;color:var(--mut2);display:flex;align-items:center;gap:5px}
 .edit input{flex:1;width:100%;background:var(--surf2);border:1px solid var(--bd2);border-radius:7px;padding:6px 8px;color:var(--txt);font-family:'DM Mono',monospace;font-size:.78rem;text-align:right}
+.edit input[type=text]{text-align:left;font-family:'DM Sans',sans-serif;font-size:.8rem}
 .edit input:focus{border-color:var(--pro)}
 .addall{width:100%;background:var(--pro);border:none;border-radius:11px;padding:13px;color:#000;font-weight:700;font-size:.85rem;margin-top:2px}
 .note{font-size:.66rem;color:var(--mut2);font-style:italic;line-height:1.5;margin:2px 0 9px}
@@ -1152,6 +1153,10 @@ function renderItems(){
     const mb=[[.5,'&frac12;'],[1,'1'],[1.5,'1&frac12;'],[2,'2']].map(([v,l])=>
       '<button class="mu'+(Math.abs(it.mult-v)<.01?' on':'')+'" onclick="setMult('+i+','+v+')">'+l+'</button>').join('');
     const ed=it.edit?'<div class="edit">'+
+      '<label style="grid-column:1/-1"><span style="color:var(--mut2)">NAME</span>'+
+      '<input type="text" value="'+esc(it.name)+'" onchange="setText('+i+',\'name\',this.value)"></label>'+
+      '<label style="grid-column:1/-1"><span style="color:var(--mut2)">PORTION</span>'+
+      '<input type="text" value="'+esc(it.portion||'')+'" onchange="setText('+i+',\'portion\',this.value)"></label>'+
       [['protein','P','var(--pro)'],['carbs','C','var(--carb)'],['fat','F','var(--fat)'],['kcal','cal','#888'],['sodium','mg','#7dd3fc']].map(([k,l,c])=>
       '<label><span style="color:'+c+'">'+l+'</span><input type="number" inputmode="numeric" value="'+(it[k]||0)+'" onchange="setField('+i+',\''+k+'\',this.value)"></label>').join('')+
       '</div>':'';
@@ -1174,6 +1179,7 @@ function renderItems(){
 function setMult(i,v){pending[i].mult=v;renderItems()}
 function toggleEdit(i){pending[i].edit=!pending[i].edit;renderItems()}
 function setField(i,k,v){const n=Math.max(0,Math.round(+v||0));pending[i][k]=n;pending[i].mult=1;renderItems()}
+function setText(i,k,v){pending[i][k]=String(v).slice(0,90);renderItems()}
 function rmItem(i){pending.splice(i,1);renderItems()}
 function addAll(){
   if(!pending||!pending.length)return;
@@ -1250,9 +1256,17 @@ function exportCSV(){
   Object.keys(state.days).sort().forEach(k=>{
     const d=state.days[k], t=totals(k), g=effGoals(k);
     const ls=(d.workouts||[]).filter(w=>w.type==='lift');
-    const ld=ls.map(w=>w.liftName?w.liftName+' ('+w.liftLoc+')':w.desc).join(' + ');
-    const done=ls.reduce((a,w)=>a+(w.done||0),0);
-    const tot=ls.reduce((a,w)=>a+(w.tot||0),0);
+    // legacy records carry no done/tot fields — recover them from the description
+    const info=ls.map(w=>{
+      if(w.liftName)return{name:w.liftName+' ('+w.liftLoc+')',done:w.done||0,tot:w.tot||0};
+      const t=String(w.desc||'');
+      const m=/(\d+)\s*\/\s*(\d+)\s*complete/.exec(t);
+      return{name:t.replace(/\s*\u2014.*$/,'').trim()||t,
+             done:m?+m[1]:0, tot:m?+m[2]:0};
+    });
+    const ld=info.map(x=>x.name).join(' + ');
+    const done=info.reduce((a,x)=>a+x.done,0);
+    const tot=info.reduce((a,x)=>a+x.tot,0);
     rows.push([k,t.kcal,t.protein,t.carbs,t.fat,t.sodium,
       state.goals.cal,state.goals.protein,state.goals.carbs,state.goals.fat,sodiumGoal(k),
       kindOf(k),milesToday(k),t.burned,

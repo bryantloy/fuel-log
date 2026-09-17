@@ -1,5 +1,5 @@
 // Network-first so app updates always land. Cache is only an offline fallback.
-const CACHE = 'buildlog-v29';
+const CACHE = 'buildlog-v31';
 const SHELL = ['/', '/index.html', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', e => {
