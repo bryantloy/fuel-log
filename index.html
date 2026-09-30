@@ -563,7 +563,7 @@ const ALTS={
  'Incline DB Press':['Incline Barbell Press','Incline Machine Press','Low-Incline DB Press'],
  'Chest-Supported Row':['Seated Cable Row','T-Bar Row','Barbell Row'],
  'Cable Fly':['Pec Deck','DB Fly','Low-to-High Cable Fly','Machine Chest Fly'],
- 'Neutral-Grip Lat Pulldown':['Wide-Grip Pulldown','Straight-Arm Pulldown','Chest-Supported Row'],
+ 'Single-Arm Lat Pulldown':['Neutral-Grip Lat Pulldown','Wide-Grip Pulldown','Straight-Arm Pulldown','Chest-Supported Row'],
  'Back Squat':['V-Squat','Hack Squat','Front Squat','Safety Bar Squat','Leg Press'],
  'Romanian Deadlift':['Dumbbell RDL','Good Morning','Seated Leg Curl','Cable Pull-Through'],
  'Leg Press':['Bulgarian Split Squat','Hack Squat','Goblet Squat','Walking Lunge'],
@@ -682,7 +682,7 @@ const PROGRAM=[
    ['Incline DB Press','3×10','90s','3-sec negative'],
    ['Chest-Supported Row','3×10-12','90s','Chest stays on pad'],
    ['Cable Fly','3×15','60s','Stretch at the bottom'],
-   ['Neutral-Grip Lat Pulldown','3×12','60s','Drive elbows to hips'],
+   ['Single-Arm Lat Pulldown','10/8/6 ea','90s','Add weight each set. Drive elbow to hip, keep the torso square — don\'t rotate toward the working side'],
    ['Face Pull','3×15','60s','Shoulder health — do not skip'],
    ['Ab Wheel Rollout','3×10','60s','Anti-extension — ribs down, no sag'],
    ['Side Plank','3×40s ea','45s','Anti-lateral flexion — stack the hips']
@@ -849,12 +849,26 @@ function milesToday(k){
   if(!mi&&d.planned&&d.planned.distance)mi=d.planned.distance;
   return mi;
 }
+function parseDur(s){
+  if(!s)return 0;
+  const parts=String(s).split(':').map(Number);
+  if(parts.some(isNaN))return 0;
+  if(parts.length===3)return parts[0]*60+parts[1]+parts[2]/60;  // H:MM:SS -> total minutes
+  if(parts.length===2)return parts[0]+parts[1]/60;              // MM:SS -> total minutes
+  return 0;
+}
+function runHoursToday(k){
+  const d=day(k);
+  let mins=0;
+  (d.workouts||[]).forEach(w=>{if(w.type==='run'&&w.mins)mins+=w.mins});
+  if(mins)return mins/60;
+  return milesToday(k)/7;   // fallback estimate (~8:35/mi) when actual duration wasn't logged
+}
 /* Baseline intake target plus sweat replacement.
    sweatNa = mg sodium lost per hour of running; hot adds 25%. */
 function sodiumGoal(k){
   const p=state.profile||{}, perHr=p.sweatNa||800;
-  const mi=milesToday(k);
-  const hrs=mi/7;              // ~8:35/mi
+  const hrs=runHoursToday(k);
   const mult=p.hot?1.25:1;
   return Math.round(2000 + hrs*perHr*mult);
 }
@@ -890,7 +904,7 @@ document.getElementById('runShot').addEventListener('change',async e=>{
     if(W.pace)bits.push(W.pace+'/mi');
     if(W.hr)bits.push(W.hr+' bpm');
     const type=strength?'lift':(/ride|bike/i.test(W.activity)?'other':'run');
-    d.workouts.push({type,desc:(W.activity||'Run')+' — '+bits.join(' · '),cal});
+    d.workouts.push({type,desc:(W.activity||'Run')+' — '+bits.join(' · '),cal,mins:W.minutes||parseDur(W.duration)||0});
     delete d.planned;
     save();render();
     toast(W.activity+' logged — '+cal+' cal');
