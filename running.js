@@ -94,3 +94,4 @@ function seed(){if(!confirm('Add the supplied Oct 12–Nov 8 calendar examples? 
 window.RunningTest={validate,total,pace,dateAdd,monday};
 draw();render();
 })();
+
