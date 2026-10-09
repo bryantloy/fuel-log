@@ -220,6 +220,7 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 </style>
 <link rel="stylesheet" href="/running.css">
 <link rel="stylesheet" href="/cloud.css">
+<link rel="stylesheet" href="/fueling.css">
 </head>
 <body>
 <div class="app">
@@ -554,7 +555,7 @@ let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{wei
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.schemaVersion=p.schemaVersion||6;state.running=p.running;state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.wlog=p.wlog||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.schemaVersion=p.schemaVersion||6;state.running=p.running;state.fueling=p.fueling;state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.wlog=p.wlog||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
 /* ═══════════ LIFT PROGRAM ═══════════ */
 
@@ -1319,7 +1320,7 @@ document.getElementById('impIn').addEventListener('change',e=>{
     if(p.running){if(!Array.isArray(p.running.workouts)||!/^\d{4}-\d{2}-\d{2}$/.test(p.running.raceDate))throw new Error('bad running data');const ids=new Set();p.running.workouts.forEach(w=>{if(!w.id||ids.has(w.id)||!['easy','long','tempo','interval','strength'].includes(w.kind))throw new Error('bad workout');ids.add(w.id);window.RunningTest.validate(w)})}
     if(!confirm('Restore this backup? Matching dates and supplied settings will replace current values. Download a backup first if needed.'))return;
     localStorage.setItem('fuellog_before_restore',JSON.stringify(state));
-    for(const key of ['profile','favs','favSeed4','swaps','wlog','running','schemaVersion'])if(Object.prototype.hasOwnProperty.call(p,key))state[key]=p[key];
+    for(const key of ['profile','favs','favSeed4','swaps','wlog','running','fueling','schemaVersion'])if(Object.prototype.hasOwnProperty.call(p,key))state[key]=p[key];
     state.goals={...state.goals,...(p.goals||{})};
     state.days={...state.days,...p.days};
     save();location.reload();
@@ -1435,6 +1436,7 @@ render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
 <script src="/running.js"></script>
+<script src="/fueling.js"></script>
 <script src="/cloud.js"></script>
 </body>
 </html>

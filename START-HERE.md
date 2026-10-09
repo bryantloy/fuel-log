@@ -4,6 +4,8 @@ This package updates the running-calendar version currently in `bryantloy/fuel-l
 
 It also adds a complete 16-week Bryant comparison marathon plan, a Both/Bryant/Runna view control, Saturday long runs, deliberate recovery weeks, and marathon-pace decision gates. See `BRYANT-MARATHON-PLAN.md` for the training logic.
 
+The Goals screen now includes a Workout Fueling Lab. It stores recipes, scales ingredient batches, assigns recipes and hourly targets to planned workouts, and records actual servings plus GI feedback. The two initial formulas are deliberately marked as placeholders until the exact previously discussed recipes are entered.
+
 ## 1. Install the database table and policy
 
 Open the new Supabase project, select **SQL Editor**, create a new query, paste the complete contents of `supabase-setup.sql`, and run it once. A successful run should complete without an error. The script creates one cloud-state row per account, enables row-level security, permits each signed-in person to read only their own row, and requires writes to pass a revision check.
@@ -24,6 +26,8 @@ Back up the live app first using **Goals → Backup**. Extract this ZIP, then up
 - Replace `running.css`
 - Add `cloud.js`
 - Add `cloud.css`
+- Add `fueling.js`
+- Add `fueling.css`
 
 `supabase-setup.sql`, this file, and `QA-NOTES.md` are documentation/setup files. They do not need to be served by the app.
 
