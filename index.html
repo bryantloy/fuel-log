@@ -218,6 +218,7 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 .toast{position:fixed;bottom:calc(80px + var(--sb));left:50%;transform:translateX(-50%) translateY(24px);background:#242424;border:1px solid var(--bd2);border-radius:10px;padding:10px 18px;font-size:.78rem;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:999;opacity:0;max-width:88%;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0);opacity:1}
 </style>
+<link rel="stylesheet" href="/running.css">
 </head>
 <body>
 <div class="app">
@@ -552,7 +553,7 @@ let state={goals:{cal:2400,protein:170,carbs:250,fat:75,adapt:true},profile:{wei
 let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
-function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.wlog=p.wlog||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
+function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.schemaVersion=p.schemaVersion||6;state.running=p.running;state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.wlog=p.wlog||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
 /* ═══════════ LIFT PROGRAM ═══════════ */
 
@@ -1313,10 +1314,14 @@ document.getElementById('impIn').addEventListener('change',e=>{
   const rd=new FileReader();
   rd.onload=()=>{try{
     const p=JSON.parse(rd.result);
-    if(!p.days)throw new Error('bad file');
+    if(!p.days||typeof p.days!=='object'||Array.isArray(p.days))throw new Error('bad file');
+    if(p.running){if(!Array.isArray(p.running.workouts)||!/^\d{4}-\d{2}-\d{2}$/.test(p.running.raceDate))throw new Error('bad running data');const ids=new Set();p.running.workouts.forEach(w=>{if(!w.id||ids.has(w.id)||!['easy','long','tempo','interval','strength'].includes(w.kind))throw new Error('bad workout');ids.add(w.id);window.RunningTest.validate(w)})}
+    if(!confirm('Restore this backup? Matching dates and supplied settings will replace current values. Download a backup first if needed.'))return;
+    localStorage.setItem('fuellog_before_restore',JSON.stringify(state));
+    for(const key of ['profile','favs','favSeed4','swaps','wlog','running','schemaVersion'])if(Object.prototype.hasOwnProperty.call(p,key))state[key]=p[key];
     state.goals={...state.goals,...(p.goals||{})};
     state.days={...state.days,...p.days};
-    save();fillGoals();render();toast('Backup restored');
+    save();location.reload();
   }catch(err){toast('That file could not be read')}};
   rd.readAsText(f);
 });
@@ -1428,5 +1433,6 @@ document.getElementById('mealSel').value=defaultMeal();
 render();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
+<script src="/running.js"></script>
 </body>
 </html>
