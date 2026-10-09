@@ -4,7 +4,7 @@ This package updates the running-calendar version currently in `bryantloy/fuel-l
 
 It also adds a complete 16-week Bryant comparison marathon plan, a Both/Bryant/Runna view control, Saturday long runs, deliberate recovery weeks, and marathon-pace decision gates. See `BRYANT-MARATHON-PLAN.md` for the training logic.
 
-The Goals screen now includes a Workout Fueling Lab. It stores recipes, scales ingredient batches, assigns recipes and hourly targets to planned workouts, and records actual servings plus GI feedback. The two initial formulas are deliberately marked as placeholders until the exact previously discussed recipes are entered.
+The Goals screen now includes a Workout Fueling Lab. It stores recipes, scales ingredient batches, assigns recipes and hourly targets to planned workouts, and records actual servings plus GI feedback. It includes four gel recipes and four drink recipes spanning light training, standard long-run, high-carbohydrate, and high-sodium use cases.
 
 ## 1. Install the database table and policy
 
