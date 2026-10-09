@@ -1,49 +1,59 @@
-# Running calendar update — first review package
+# Supabase cloud update
 
-This is an update for bryantloy/fuel-log, based on index.html blob a0f88f712f6bd653a4dc2bc71fd9bf8613606939. It is not a complete replacement repository. Existing BUILD.LOG branding is retained pending a naming decision.
+This package updates the running-calendar version currently in `bryantloy/fuel-log`. The source files were fetched from GitHub on October 9, 2026 before this package was built.
 
-## Upload
+## 1. Install the database table and policy
 
-1. In your existing app, use Goals → Backup to download your current data first.
-2. Extract this ZIP on your computer.
-3. In GitHub, create a development branch from your current main branch, e.g. running-calendar-v1.
-4. Upload these four files to the repository root: index.html, running.js, running.css, sw.js. Replace the existing index.html and sw.js. Keep your api folder, icons, manifest, and other existing files.
-5. Commit on the development branch. Open its Vercel preview if your project provides branch previews. The preview starts with its own browser storage; you can restore your backup there without changing the production site's storage.
-6. Test Run, Today, Lift, and Goals. When satisfied, merge the branch using GitHub. Refresh the existing production app to load the update. Your production data uses the same fuellog_v6 key and origin.
+Open the new Supabase project, select **SQL Editor**, create a new query, paste the complete contents of `supabase-setup.sql`, and run it once. A successful run should complete without an error. The script creates one cloud-state row per account, enables row-level security, permits each signed-in person to read only their own row, and requires writes to pass a revision check.
 
-Do not upload the ZIP itself expecting GitHub to extract it. START-HERE.md and QA-NOTES.md are optional documentation, not required runtime files. If main has changed since the reviewed version, compare index.html before replacing it so newer work is not lost.
+The publishable key is bundled in `cloud.js`, which is the intended use for that key. Do not add the database password, connection string, secret key, or service-role key to GitHub or the browser app.
 
-## Use it
+## 2. Configure authentication URLs
 
-Open RUN. The race date defaults to January 31, 2027 and can be edited. Add a workout or use “Load screenshot examples.” The examples cover October 12–November 8, 2026 and load only once per date. Nothing is automatically marked complete.
+In Supabase, open **Authentication → URL Configuration**. Set **Site URL** to the live app URL. Add the live URL and any Vercel preview URL pattern you intend to use under redirect URLs. Email/password authentication is enabled by default on hosted projects, and email confirmation is normally enabled.
 
-Five sessions include supplied steps: Steady into Tempo, 400s into 200s, Tempo 2 Miles, Pyramid Intervals, and the 14-mile Progressive Long Run. Other sessions are marked “Details needed”; their calendar totals are not full prescriptions. October 5–11 was not seeded because the screenshot mixes completed mileage with planned mileage and does not establish every original prescription. Exact distances in the examples use the values displayed in screenshots: 0.12 miles is not silently changed to 200 meters. This can create small differences from Runna's rounded weekly totals.
+## 3. Upload the app update
 
-Use the handle on a card to drag it to another day. On touch screens, hold the handle briefly and drag; the calendar scrolls near its edges. Move / Swap is available on every card for reliable date selection across any number of weeks. Dropping onto a day opens a choice: move/stack, or swap with an eligible workout. Undo restores the last calendar change in the current session. It is cleared after recording or linking an activity and after reload.
+Back up the live app first using **Goals → Backup**. Extract this ZIP, then upload these files to the root of the existing `fuel-log` repository:
 
-Workout editor supports step reordering, miles/meters/minutes/seconds, repeat counts, timed walking/jogging/rest recoveries after each repeat, conversational targets, pace caps, targets, and ranges. Use separate steps for pyramid or progressive segments. Arbitrarily nested repeat groups are not supported in this first release.
+- Replace `index.html`
+- Replace `sw.js`
+- Replace `running.js`
+- Replace `running.css`
+- Add `cloud.js`
+- Add `cloud.css`
 
-Details provides Outdoor / Treadmill display, skip/restore, and completed-run or lift logging. Link an existing activity instead of logging it again. Completed prescriptions are locked against moves and edits. Deleting a prescription retains its activity; deleting a linked activity in Today returns its prescription to planned.
+`supabase-setup.sql`, this file, and `QA-NOTES.md` are documentation/setup files. They do not need to be served by the app.
 
-Weekly planned miles exclude skipped sessions and strength. Weekly logged miles use actual activity dates. Planned nutrition targets reuse the app's existing estimation formulas and incorporate active planned runs. They are estimates; logged activity calorie totals retain the existing app's precedence. Conflicts involving long runs, hard runs, and strength on the same or adjacent days are highlighted for review, without automatically changing the plan.
+Commit the files. When Vercel finishes, refresh the app. If the old version remains, fully close and reopen the installed app or browser tab once; the updated service worker uses a new cache version.
 
-## Backups and storage
+## 4. Make the first cloud copy
 
-All data remains in the browser on this device and site origin. Existing food logs, favorites, profile, lift history, and exercise swaps are retained. Full backup restore now includes these fields and running data. Restore asks for confirmation; supplied settings and matching dates replace existing values, while other dates remain. Download a backup before restoring. A local pre-restore snapshot is also retained under fuellog_before_restore.
+On the device that already contains your real logs:
 
-A separate Supabase project is a suitable next step for Fuel Log so it can stay independent of the cards app. No account setup, SQL, keys, or cloud changes are required for this package. Cloud sign-in, multi-device synchronization, ownership rules, conflict handling, and local-to-cloud migration still need implementation. Do not put a Supabase service-role key into browser code.
+1. Download a local backup.
+2. Open **Goals → Account & Cloud**.
+3. Create an account with your email and a password of at least eight characters.
+4. Confirm the email if Supabase asks you to. Return to the app and sign in.
+5. Choose **Check cloud**. It should say no cloud copy exists.
+6. Choose **Save to cloud** and accept the first-upload confirmation. Wait for “Cloud save confirmed.”
 
-Garmin Connect is not connected. The UI explicitly says so. This package does not send workouts to a watch, provide a FIT export, run a live workout, or generate a complete marathon plan. Continue using Runna for its current plan and watch delivery while those capabilities are developed.
+Signing in never uploads or replaces local data. Cloud saves are manual.
 
-## Review checklist
+On another device, sign in with the same account, choose **Check cloud**, then **Load from cloud**. Loading replaces that device’s app state after saving a local recovery snapshot. Download a local backup first if the second device contains changes you may want to keep.
 
-- Restore a backup into the preview and check food history, favorites, profile, and lifting history.
-- Load examples; move a workout across weeks, swap, stack, undo, and reload.
-- Open the five detailed workouts and compare the steps against your screenshots.
-- Try touch dragging on your actual phone; Move / Swap works if the browser's drag behavior differs.
-- Link a completed activity and verify that actual mileage is counted once.
-- Edit a repeat block and check outdoor/treadmill views.
-- Export and restore a backup.
-- After visiting online, test offline reopening. AI photo analysis still requires connectivity.
+## Conflict behavior
 
-Production deployment, physical-phone touch behavior, and Garmin behavior were not tested in this environment. See QA-NOTES.md for automated checks.
+Each cloud save increments a revision. A new or stale device cannot overwrite an existing cloud copy. Load the newer cloud copy first, make changes, and save again. The first version does not merge two independently edited devices. A reliable workflow is: load before editing on a second device; save when finished.
+
+Signing out removes the local authentication session but leaves the local logs on that device. Use the app only on a private device. Each Supabase account can access only its own cloud row under the installed policy.
+
+## Recovery
+
+- Normal JSON backups still work.
+- A standard restore keeps a pre-restore snapshot in browser storage.
+- A cloud load keeps the prior state under `fuellog_before_cloud_load`.
+- If the app says database setup is missing, rerun `supabase-setup.sql`.
+- If the confirmation email redirects incorrectly, correct the Supabase Site URL and redirect URLs.
+
+This update does not connect Garmin or automatically synchronize every keystroke. It provides the account and storage foundation needed for later integrations.

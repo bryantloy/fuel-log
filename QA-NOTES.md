@@ -1,26 +1,15 @@
-# Validation — October 9, 2026
+# Cloud update validation — October 9, 2026
 
-Automated browser tests ran in headless Chromium at a 430 × 932 viewport against the packaged index.html, running.js, and running.css, using synthetic legacy data.
+Automated headless Chromium checks passed at a 430 × 932 mobile viewport using mocked Supabase responses:
 
-Passed:
-- App startup and Run navigation with no JavaScript page errors.
-- Legacy meals, favorites, profile, exercise swaps, and lifting history retained.
-- Screenshot example loading, avoiding duplicates on repeated loads.
-- Date movement, swapping two sessions, and undo.
-- Desktop native drag-and-drop into a destination day.
-- Workout creation with six 400-meter repeats and correct distance conversion.
-- Date arithmetic across week and year boundaries.
-- Persistence after page reload and schema version retention.
-- Outdoor/treadmill detail display.
-- Linking an existing activity without adding a duplicate run.
-- Full JSON backup restoration retains the expected saved state.
-- Deleting a linked activity returns its prescription to planned.
-- JavaScript syntax checks for running.js and sw.js.
-- Visual inspection of the mobile-width calendar and workout detail dialog.
+- Existing GitHub version loads with running and cloud modules and no browser errors.
+- Signed-out email/password controls render correctly.
+- An authenticated session displays the signed-in account.
+- An empty cloud check reports that the first copy can be created.
+- First save sends the full current app state and records the confirmed server revision.
+- Revision metadata is tied to the authenticated account.
+- Mobile account panel was visually inspected.
+- JavaScript syntax checks passed for bundled cloud.js, running.js, and sw.js.
+- The package is based on current GitHub blobs: index.html `5b35235c...`, running.js `de0cccc3...`, running.css `f7d109a9...`, sw.js `fe30a574...`.
 
-Limitations:
-- No Vercel production deployment or API request was made.
-- Physical Android/iOS touch dragging remains a user-device check; Move / Swap provides an alternative.
-- The service worker's offline flow was reviewed but not exercised against the real hosted app and its icons/manifest.
-- No Supabase, Garmin connection, watch transfer, or training-plan generator is implemented or claimed.
-- Screenshot mileage is preserved as displayed; some distances and totals are rounded by the source.
+The save function and row-level security SQL were reviewed, but the SQL was not executed against the user's Supabase project because no database-administration connection was available. Real confirmation email delivery, Vercel redirects, real cloud reads/writes, multi-device behavior, and recovery flows require the setup and device checklist in START-HERE.md.
