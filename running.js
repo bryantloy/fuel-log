@@ -19,7 +19,9 @@ function validate(w){
 const R=()=>state.running;
 state.schemaVersion=7;
 state.running=state.running||{version:1,raceDate:'2027-01-31',workouts:[],viewDate:todayKey()};
-let week=monday(R().viewDate||todayKey()), undo=null, selected=null, drag=null, treadmill=false;
+let week=monday(R().viewDate||todayKey()), undo=null, selected=null, drag=null, treadmill=false, planView='both';
+const planOf=w=>w.plan||(String(w.id).startsWith('reference-')?'runna':'custom');
+const visible=w=>planView==='both'||planOf(w)===planView;
 const panel=document.createElement('div'); panel.className='panel';panel.id='p-run';$('p-lift').before(panel);
 const nav=document.createElement('button');nav.className='nb';nav.id='n-run';nav.innerHTML='<span class="ic">🏃</span>RUN';nav.onclick=()=>tab('run');$('n-lift').before(nav);
 const originalTab=tab;tab=function(t){if(t==='run'){['today','history','goals','lift'].forEach(x=>{$('p-'+x).classList.remove('on');$('n-'+x).classList.remove('on')});$('scroll').scrollTop=0;draw()}else originalTab(t);panel.classList.toggle('on',t==='run');nav.classList.toggle('on',t==='run')};
@@ -40,24 +42,24 @@ function draw(){
  heading(top,'YOUR ROAD TO 26.2','h2');const days=Math.round((new Date(R().raceDate+'T12:00:00')-new Date(todayKey()+'T12:00:00'))/86400000);heading(top,`${R().raceDate} · ${days>=0?days+' days to go':'Race date passed'}`,'p');
  const toolbar=document.createElement('div');toolbar.className='run-tools';top.append(toolbar);
  toolbar.append(button('＋ Workout',()=>edit()),button('Race date',()=>{const d=prompt('Marathon date (YYYY-MM-DD)',R().raceDate);if(d&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&!isNaN(new Date(d)))mutate(()=>R().raceDate=d)}),button('Undo',()=>{if(undo){state.running=undo;undo=null;persist()}}));
- toolbar.append(button('Load screenshot examples',seed));
+ toolbar.append(button('Load Runna examples',seed),button('Load Bryant plan',seedCoach),button('View: '+(planView==='both'?'Both':planView==='coach'?'Bryant':'Runna'),()=>{planView=planView==='both'?'coach':planView==='coach'?'runna':'both';draw()}));
  const note=document.createElement('p');note.className='run-muted';note.textContent='Saved on this device · Garmin not connected. Drag by the handle, or use Move / Swap. Examples are prescriptions, not completed runs.';top.append(note);
  const bar=document.createElement('div');bar.className='run-tools';panel.append(bar);bar.append(button('← Week',()=>{week=dateAdd(week,-7);draw()}),button('Today',()=>{week=monday(todayKey());draw()}),button('Week →',()=>{week=dateAdd(week,7);draw()}));
  const jump=document.createElement('input');jump.type='date';jump.value=week;jump.onchange=()=>{if(jump.value){week=monday(jump.value);draw()}};bar.append(jump);
- let planned=0,done=0;for(let i=0;i<7;i++){const d=dateAdd(week,i);planned+=R().workouts.filter(w=>w.date===d&&w.kind!=='strength'&&w.status!=='skipped').reduce((a,w)=>a+total(w),0);done+=actual(d)}
+ let planned=0,done=0;for(let i=0;i<7;i++){const d=dateAdd(week,i);planned+=R().workouts.filter(w=>w.date===d&&w.kind!=='strength'&&w.status!=='skipped'&&visible(w)).reduce((a,w)=>a+total(w),0);done+=actual(d)}
  heading(panel,`${week} — ${dateAdd(week,6)}`);heading(panel,`${planned.toFixed(1)} mi planned · ${done.toFixed(1)} mi logged`,'p');
  for(let i=0;i<14;i++){
   if(i===7){const start=dateAdd(week,7);let p=0,a=0;for(let j=7;j<14;j++){const k=dateAdd(week,j);p+=R().workouts.filter(w=>w.date===k&&w.kind!=='strength'&&w.status!=='skipped').reduce((n,w)=>n+total(w),0);a+=actual(k)}heading(panel,`${start} — ${dateAdd(week,13)}`);heading(panel,`${p.toFixed(1)} mi planned · ${a.toFixed(1)} mi logged`,'p')}
   const d=dateAdd(week,i), row=document.createElement('section');row.className='run-day'+(d===todayKey()?' is-today':'');row.dataset.date=d;
   row.ondragover=e=>e.preventDefault();row.ondrop=e=>{e.preventDefault();if(drag)moveDialog(drag,d);drag=null};
   heading(row,new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}));
-  R().workouts.filter(w=>w.date===d).forEach(w=>{
+  R().workouts.filter(w=>w.date===d&&visible(w)).forEach(w=>{
    const card=document.createElement('article');card.className='run-card '+w.kind;card.dataset.id=w.id;
    const handle=button('⠿',()=>{},'run-handle');handle.title='Drag workout';handle.draggable=!['completed'].includes(w.status);handle.ondragstart=e=>{drag=w.id;e.dataTransfer.setData('text/plain',w.id)};
    let timer=null,moving=false;handle.onpointerdown=e=>{if(e.pointerType==='mouse'||w.status==='completed')return;timer=setTimeout(()=>{moving=true;drag=w.id;handle.setPointerCapture(e.pointerId);card.classList.add('dragging')},220)};
    handle.onpointermove=e=>{if(!moving)return;e.preventDefault();const sc=$('scroll'),r=sc.getBoundingClientRect();if(e.clientY>r.bottom-70)sc.scrollTop+=16;if(e.clientY<r.top+70)sc.scrollTop-=16};
    handle.onpointerup=e=>{clearTimeout(timer);if(moving){moving=false;card.classList.remove('dragging');const target=document.elementFromPoint(e.clientX,e.clientY)?.closest('[data-date]');if(target)moveDialog(w.id,target.dataset.date);drag=null}};handle.onpointercancel=()=>{clearTimeout(timer);moving=false;drag=null;card.classList.remove('dragging')};
-   card.append(handle);heading(card,w.title);heading(card,`${w.kind==='strength'?'Strength':total(w).toFixed(2)+' mi'} · ${w.status||'planned'}${w.summaryOnly?' · Details needed':''}`,'p');
+   card.append(handle);heading(card,w.title);heading(card,`${planOf(w)==='coach'?'BRYANT PLAN · ':planOf(w)==='runna'?'RUNNA · ':''}${w.kind==='strength'?'Strength':total(w).toFixed(2)+' mi'} · ${w.status||'planned'}${w.summaryOnly?' · Details needed':''}`,'p');
    card.append(button('Details',()=>detail(w.id)),button('Move / Swap',()=>moveDialog(w.id)),button('Edit',()=>edit(w.id)));row.append(card);
   });
   row.append(button('＋ Add',()=>edit(null,d)));const g=effGoals(d);heading(row,`Nutrition target: ${g.cal} kcal · ${g.carbs}g carbs${g.src?' · '+g.src:''}`,'small');panel.append(row);
@@ -69,7 +71,7 @@ function modal(title){dlg.replaceChildren();dlg.append(button('Close',()=>dlg.cl
 function field(parent,label,type,value){const l=document.createElement('label');l.textContent=label;const input=document.createElement('input');input.setAttribute('aria-label',label);input.type=type;input.value=value??'';l.append(input);parent.append(l);return input}
 function select(parent,label,options,value){const l=document.createElement('label');l.textContent=label;const input=document.createElement('select');input.setAttribute('aria-label',label);for(const [v,t]of options){const o=document.createElement('option');o.value=v;o.textContent=t;input.append(o)}input.value=value;l.append(input);parent.append(l);return input}
 function moveDialog(id,d){const w=R().workouts.find(w=>w.id===id);if(!w)return;if(w.status==='completed'){toast('Completed sessions keep their date');return}const m=modal('Move or swap');const date=field(m,'Destination','date',d||w.date);const choices=document.createElement('div');m.append(choices);function refresh(){choices.replaceChildren();const others=R().workouts.filter(x=>x.date===date.value&&x.id!==id&&x.status!=='completed');choices.append(button('Move here / stack',()=>apply(null)));others.forEach(x=>choices.append(button('Swap with '+x.title,()=>apply(x.id))))}function apply(other){if(!date.value)return;mutate(()=>{if(other)R().workouts.find(x=>x.id===other).date=w.date;w.date=date.value;w.revision=(w.revision||1)+1});dlg.close()}date.onchange=refresh;refresh()}
-function detail(id){const w=R().workouts.find(w=>w.id===id),m=modal(w.title);heading(m,`${w.date} · ${total(w).toFixed(2)} mi`,'p');if(w.source)heading(m,w.source,'small');m.append(button(treadmill?'Show outdoor pace':'Show treadmill mph',()=>{treadmill=!treadmill;detail(id)}));if(w.summaryOnly)heading(m,'Only calendar mileage was supplied. Add the workout prescription before using it as a structured session.','p');
+function detail(id){const w=R().workouts.find(w=>w.id===id),m=modal(w.title);heading(m,`${w.date} · ${total(w).toFixed(2)} mi`,'p');if(w.source)heading(m,w.source,'small');if(w.notes)heading(m,w.notes,'p');m.append(button(treadmill?'Show outdoor pace':'Show treadmill mph',()=>{treadmill=!treadmill;detail(id)}));if(w.summaryOnly)heading(m,'Only calendar mileage was supplied. Add the workout prescription before using it as a structured session.','p');
  w.steps.forEach(s=>{const box=document.createElement('div');box.className='run-step';let target=s.target==='easy'?'Conversational':s.target==='open'?'No target':s.target==='cap'?'No faster than ':'';if(['cap','target','range'].includes(s.target)){const val=treadmill?(3600/pace(s.pace)).toFixed(1)+' mph':s.pace+'/mi';target+=val;if(s.target==='range')target+=' to '+(treadmill?(3600/pace(s.slow)).toFixed(1)+' mph':s.slow+'/mi')}heading(box,`${s.repeat>1?s.repeat+' × ':''}${s.label} · ${s.amount} ${s.unit}`);heading(box,target,'p');if(s.rest)heading(box,`After each: ${s.rest}s ${s.restMode} recovery`,'p');m.append(box)});
  if(w.status!=='completed'){m.append(button(w.kind==='strength'?'Log completed lift':'Log completed run',()=>complete(id)),button(w.kind==='strength'?'Link existing lift':'Link existing run',()=>link(id)),button(w.status==='skipped'?'Restore planned':'Skip workout',()=>{mutate(()=>w.status=w.status==='skipped'?'planned':'skipped');dlg.close()}))}
  m.append(button('Delete prescription',()=>{if(confirm('Delete this prescription? Completed activity data is retained.')){mutate(()=>R().workouts=R().workouts.filter(x=>x.id!==id));dlg.close()}}));
@@ -90,6 +92,44 @@ function seed(){if(!confirm('Add the supplied Oct 12–Nov 8 calendar examples? 
  '2026-11-07':[step('Easy start',5),step('Progression',3,'mi','target','7:45'),step('Progression',3,'mi','target','7:20'),step('Finish',3,'mi','target','7:00')]};
  const weeks=[['2026-10-12',[[5,'easy','Easy Run'],[5.5,'tempo','Tempo 2-1'],[4.5,'easy','Easy Run'],[5.5,'interval','K200s'],[0,'strength','Stretch & Stability'],[4.5,'easy','Easy Run'],[12,'long','Long Run']]],['2026-10-19',[[5.5,'tempo','Tempo 2.5mi'],[5,'easy','Easy Run'],[5,'interval','800m Repeats'],[5,'easy','Easy Run'],[4,'easy','Easy Run'],[13.1,'long','Half Marathon Long Run'],[0,'strength','Stretch & Stability']]],['2026-10-26',[[3.8,'tempo','Steady into Tempo'],[4.5,'easy','Easy Run'],[3.6,'interval','400s into 200s'],null,[5,'easy','Easy Run'],[6.5,'long','Long Run'],[0,'strength','Stretch & Stability']]],['2026-11-02',[[6.5,'tempo','Tempo 2 Miles'],[6,'easy','Easy Run'],[4.9,'interval','Pyramid Intervals'],[4.5,'easy','Easy Run'],[3.75,'easy','Easy Run'],[14,'long','Progressive Long Run'],[0,'strength','Stretch & Stability']]]];
  mutate(()=>{weeks.forEach(([start,items])=>items.forEach((v,i)=>{if(!v)return;const d=dateAdd(start,i),id='reference-'+d;if(R().workouts.some(w=>w.id===id))return;R().workouts.push({id,date:d,title:v[2],kind:v[1],status:'planned',revision:1,summaryOnly:!detailed[d],source:'User screenshots; distances as displayed',steps:detailed[d]||[step(v[1]==='strength'?'Mobility':'Calendar distance',v[1]==='strength'?25:v[0],v[1]==='strength'?'min':'mi')]})}))});week='2026-10-12';draw();
+}
+
+function seedCoach(){
+ if(!confirm('Add the full Bryant comparison plan through the January 31 marathon? It will sit beside the Runna entries and can be filtered, moved, edited or deleted.'))return;
+ const weeks=[
+  ['2026-10-12',35,[5,6,5,4,3,12],'Foundation + cruise intervals','Tue: 1.5 mi easy, 3 × 1 mi at 6:45–6:55/mi with 90s jog, easy running to 6 mi. Sat: 12 mi conversational; last 2 mi steady only if relaxed.'],
+  ['2026-10-19',38,[5,7,5,5,3,13],'Aerobic build + 800s','Tue: 2 mi easy, 6 × 800m at roughly 6:15–6:25/mi effort with 90s jog, easy running to 7 mi. Sat: 13 mi easy; practice fueling.'],
+  ['2026-10-26',40,[5,7,6,5,3,14],'Threshold + first long checkpoint','Tue: 1.5 mi easy, 4 mi controlled threshold at 6:50–7:00/mi, 1.5 mi easy. Sat: 14 mi with final 3 mi at 7:20–7:35 if form stays smooth.'],
+  ['2026-11-02',34,[5,6,5,4,3,11],'Absorb, do not taper','Tue: 6 mi fartlek with 10 × 1 min fast / 1 min easy; fast means controlled 5K effort, not sprinting. Sat: 11 mi fully easy.'],
+  ['2026-11-09',42,[6,7,6,5,3,15],'Cruise strength + 15','Tue: 1.5 mi easy, 2 × 2 mi at 6:45–6:55/mi with 2 min jog, 1.5 mi easy. Sat: 15 mi easy with full race-fueling rehearsal.'],
+  ['2026-11-16',45,[6,8,6,6,3,16],'1K economy + steady finish','Tue: 2 mi easy, 5 × 1K at 6:10–6:20/mi effort with 2 min jog, easy running to 8 mi. Sat: 16 mi; final 4 mi at 7:10–7:25 if RPE is no higher than 7/10.'],
+  ['2026-11-23',47,[6,8,7,6,3,17],'800s + durable easy long run','Tue: 2 mi easy, 6 × 800m at 6:10–6:20/mi effort with 90s jog, easy running to 8 mi. Sat: 17 mi conversational. Fuel early and hold pace back.'],
+  ['2026-11-30',39,[5,7,6,5,3,13],'Recovery + controlled tempo','Tue: 2 mi easy, 3 mi at 6:50–7:00/mi, 2 mi easy. Sat: 13 mi easy. This is a planned absorption week, not a fitness-loss week.'],
+  ['2026-12-07',48,[6,8,7,6,3,18],'Marathon-pace gate 1','Tue: 1 mi easy, 3 × 2 mi at 6:45–6:55/mi with 2 min jog, easy running to 8 mi. Sat: 18 mi with 6 mi at your selected track: 6:52 stretch, 7:05 strong, or 7:20 base.'],
+  ['2026-12-14',50,[6,9,7,6,3,19],'Threshold reps + aerobic 19','Tue: 2 mi easy, 5 × 1 mi at 6:40–6:50/mi with 75–90s jog, 2 mi easy. Sat: 19 mi mostly easy; no fast finish.'],
+  ['2026-12-21',52,[6,9,8,6,3,20],'Marathon-pace gate 2','Tue: 1 mi easy, 2 × 3 mi at 6:50–7:00/mi with 3 min jog, easy running to 9 mi. Sat: 20 mi with final 8 mi at selected marathon track; stop the pace block if form or fueling deteriorates.'],
+  ['2026-12-28',44,[6,8,6,5,3,16],'Absorb the peak','Tue: 2 mi easy, 6 × 800m at controlled 10K effort with 90s jog, easy running to 8 mi. Sat: 16 mi easy. Keep frequency; reduce stress.'],
+  ['2027-01-04',54,[7,9,8,7,3,20],'Peak marathon simulation','Tue: 2 mi easy, 5 mi controlled threshold at 6:50–7:00/mi, 2 mi easy. Sat: 20 mi with 5 easy + 10 at selected marathon track + 5 easy. This decides the realistic race target.'],
+  ['2027-01-11',48,[6,8,7,6,3,18],'Specificity, then release','Tue: 2 mi easy, 3 × 1 mi at threshold with 2 min jog, easy running to 8 mi. Sat: 18 mi with 6 mi at confirmed marathon pace, never faster.'],
+  ['2027-01-18',38,[5,7,6,5,3,12],'Taper 1: keep rhythm','Tue: 2 mi easy, 3 mi at threshold, 2 mi easy. Sat: 12 mi with 3 mi at confirmed marathon pace. Volume drops; intensity remains familiar.'],
+  ['2027-01-25',40.2,[3,4,3,2,2,0,26.2],'Race week','Tue: 4 mi including 6 × 20s relaxed strides. Thu: 2 mi with 3 × 2 min at marathon pace. Sat: rest with a short optional walk. Sun: marathon—start from the confirmed pace track, not the aspirational one.']
+ ];
+ const names=['Easy + strides','Quality session','Easy aerobic','Medium aerobic','Recovery run','Saturday long run','Marathon'];
+ const kinds=['easy','tempo','easy','easy','easy','long','long'];
+ const baseNotes=['Conversational effort. Finish with 6 × 20s relaxed strides if legs feel normal.','','Conversational effort; keep this genuinely easy.','Mostly easy. A gentle steady finish is optional, never required.','Very easy recovery effort.','',''];
+ mutate(()=>weeks.forEach((w,wi)=>{
+  const [start,weekly,miles,focus,special]=w;
+  miles.forEach((mi,di)=>{
+   if(!mi)return;
+   const date=dateAdd(start,di),id='coach-'+date;
+   if(R().workouts.some(x=>x.id===id))return;
+   let notes=baseNotes[di];
+   if(di===1||di===5||di===6)notes=special;
+   if(di===6&&wi<15)return;
+   R().workouts.push({id,date,title:di===6?'January 31 Marathon':names[di],kind:kinds[di],plan:'coach',status:'planned',revision:1,summaryOnly:false,source:`Bryant comparison plan · Week ${wi+1} · ${weekly} mi · ${focus}`,notes,steps:[step(di===6?'Race':'Session total',mi,'mi',di===6?'open':'easy')]});
+  });
+ }));
+ week='2026-10-12';planView='both';draw();
 }
 window.RunningTest={validate,total,pace,dateAdd,monday};
 draw();render();

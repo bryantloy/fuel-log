@@ -2,6 +2,8 @@
 
 This package updates the running-calendar version currently in `bryantloy/fuel-log`. The source files were fetched from GitHub on October 9, 2026 before this package was built.
 
+It also adds a complete 16-week Bryant comparison marathon plan, a Both/Bryant/Runna view control, Saturday long runs, deliberate recovery weeks, and marathon-pace decision gates. See `BRYANT-MARATHON-PLAN.md` for the training logic.
+
 ## 1. Install the database table and policy
 
 Open the new Supabase project, select **SQL Editor**, create a new query, paste the complete contents of `supabase-setup.sql`, and run it once. A successful run should complete without an error. The script creates one cloud-state row per account, enables row-level security, permits each signed-in person to read only their own row, and requires writes to pass a revision check.
