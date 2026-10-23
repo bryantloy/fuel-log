@@ -28,6 +28,28 @@ function jwtExp(token) {
   }
 }
 
+const JWT = /^[\w-]+\.[\w-]+\.[\w-]+$/;
+
+// Garmin's token reply format is not documented publicly, so accept a bare JWT or
+// find a JWT-shaped string anywhere in a JSON reply, preferring common field names.
+function findToken(text) {
+  const t = String(text || "").trim().replace(/^"|"$/g, "");
+  if (JWT.test(t)) return t;
+  let body;
+  try { body = JSON.parse(text); } catch { return null; }
+  for (const k of ["access_token", "accessToken", "token", "bearerToken", "jwt", "id_token"]) {
+    if (body && typeof body[k] === "string" && body[k]) return body[k];
+  }
+  const walk = (v, depth) => {
+    if (typeof v === "string") return JWT.test(v) ? v : null;
+    if (v && typeof v === "object" && depth < 4) {
+      for (const x of Object.values(v)) { const f = walk(x, depth + 1); if (f) return f; }
+    }
+    return null;
+  };
+  return walk(body, 0);
+}
+
 async function getToken(apiKey) {
   if (cached && cached.key === apiKey && cached.exp - Date.now() > 60 * 60 * 1000) return cached.token;
   const r = await fetch(TOKEN_URL, { method: "POST", headers: { Authorization: "ApiKey " + apiKey } });
@@ -37,10 +59,15 @@ async function getToken(apiKey) {
     e.status = r.status;
     throw e;
   }
-  let body;
-  try { body = JSON.parse(text); } catch { body = null; }
-  const token = body && (body.access_token || body.accessToken || body.token);
-  if (!token) throw new Error("Garmin token response had no access token");
+  const token = findToken(text);
+  if (!token) {
+    let shape = "non-JSON text";
+    try {
+      const b = JSON.parse(text);
+      shape = b && typeof b === "object" ? "fields: " + Object.keys(b).join(", ") : typeof b;
+    } catch {}
+    throw new Error("Garmin token response had no usable token (" + shape + ")");
+  }
   cached = { token, key: apiKey, exp: jwtExp(token) || Date.now() + 23 * 60 * 60 * 1000 };
   return token;
 }
