@@ -1,4 +1,4 @@
-/* Fuel Log running module: all prescriptions remain local until an integration exists. */
+/* Fuel Log running module: prescriptions stay local; runs and recovery sync from Garmin on demand. */
 (() => {
 'use strict';
 const $=id=>document.getElementById(id), MI=1609.344;
@@ -17,6 +17,7 @@ function validate(w){
  return w;
 }
 const R=()=>state.running;
+const G=()=>{if(!state.garmin||typeof state.garmin!=='object')state.garmin={};if(!state.garmin.recovery)state.garmin.recovery={};return state.garmin};
 state.schemaVersion=7;
 state.running=state.running||{version:1,raceDate:'2027-01-31',workouts:[],viewDate:todayKey()};
 let week=monday(R().viewDate||todayKey()), undo=null, selected=null, drag=null, treadmill=false, planView='both';
@@ -41,10 +42,10 @@ function draw(){
  panel.replaceChildren();const top=document.createElement('div');top.className='run-hero';panel.append(top);
  heading(top,'YOUR ROAD TO 26.2','h2');const days=Math.round((new Date(R().raceDate+'T12:00:00')-new Date(todayKey()+'T12:00:00'))/86400000);heading(top,`${R().raceDate} · ${days>=0?days+' days to go':'Race date passed'}`,'p');
  const toolbar=document.createElement('div');toolbar.className='run-tools';top.append(toolbar);
- toolbar.append(button('＋ Workout',()=>edit()),button('Race date',()=>{const d=prompt('Marathon date (YYYY-MM-DD)',R().raceDate);if(d&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&!isNaN(new Date(d)))mutate(()=>R().raceDate=d)}),button('Undo',()=>{if(undo){state.running=undo;undo=null;persist()}}));
+ toolbar.append(button(syncing?'Syncing…':'Sync Garmin',garminSync),button('＋ Workout',()=>edit()),button('Race date',()=>{const d=prompt('Marathon date (YYYY-MM-DD)',R().raceDate);if(d&&/^\d{4}-\d{2}-\d{2}$/.test(d)&&!isNaN(new Date(d)))mutate(()=>R().raceDate=d)}),button('Undo',()=>{if(undo){state.running=undo;undo=null;persist()}}));
  toolbar.append(button('Load Runna examples',seed),button('Load Bryant plan',seedCoach),button('View: '+(planView==='both'?'Both':planView==='coach'?'Bryant':'Runna'),()=>{planView=planView==='both'?'coach':planView==='coach'?'runna':'both';draw()}));
- const note=document.createElement('p');note.className='run-muted';note.textContent='Saved on this device · Garmin not connected. Drag by the handle, or use Move / Swap. Examples are prescriptions, not completed runs.';top.append(note);
- const bar=document.createElement('div');bar.className='run-tools';panel.append(bar);bar.append(button('← Week',()=>{week=dateAdd(week,-7);draw()}),button('Today',()=>{week=monday(todayKey());draw()}),button('Week →',()=>{week=dateAdd(week,7);draw()}));
+ const note=document.createElement('p');note.className='run-muted';note.textContent='Saved on this device · '+(G().lastSync?'Garmin synced '+new Date(G().lastSync).toLocaleString():'Garmin not synced yet')+'. Drag by the handle, or use Move / Swap. Examples are prescriptions, not completed runs.';top.append(note);
+ recoveryPanel();const bar=document.createElement('div');bar.className='run-tools';panel.append(bar);bar.append(button('← Week',()=>{week=dateAdd(week,-7);draw()}),button('Today',()=>{week=monday(todayKey());draw()}),button('Week →',()=>{week=dateAdd(week,7);draw()}));
  const jump=document.createElement('input');jump.type='date';jump.value=week;jump.onchange=()=>{if(jump.value){week=monday(jump.value);draw()}};bar.append(jump);
  let planned=0,done=0;for(let i=0;i<7;i++){const d=dateAdd(week,i);planned+=R().workouts.filter(w=>w.date===d&&w.kind!=='strength'&&w.status!=='skipped'&&visible(w)).reduce((a,w)=>a+total(w),0);done+=actual(d)}
  heading(panel,`${week} — ${dateAdd(week,6)}`);heading(panel,`${planned.toFixed(1)} mi planned · ${done.toFixed(1)} mi logged`,'p');
@@ -65,6 +66,58 @@ function draw(){
   row.append(button('＋ Add',()=>edit(null,d)));const g=effGoals(d);heading(row,`Nutrition target: ${g.cal} kcal · ${g.carbs}g carbs${g.src?' · '+g.src:''}`,'small');panel.append(row);
  }
  const hard=R().workouts.filter(w=>['interval','tempo','long','strength'].includes(w.kind)&&w.status!=='skipped').sort((a,b)=>a.date.localeCompare(b.date));const warnings=[];for(let i=1;i<hard.length;i++){if(hard[i].date>=week&&hard[i].date<=dateAdd(week,13)&&hard[i].date<=dateAdd(hard[i-1].date,1))warnings.push(`${hard[i-1].title} and ${hard[i].title} are on the same or consecutive days.`)}if(warnings.length){const box=document.createElement('aside');box.className='run-warning';heading(box,'Schedule review');warnings.forEach(w=>heading(box,w,'p'));panel.append(box)}
+}
+
+let syncing=false;
+async function garminApi(action,start,end){
+ let token='';try{token=JSON.parse(localStorage.getItem('fuellog_supabase_auth_v1')||'{}').access_token||''}catch(e){}
+ if(!token)throw Error('Sign in under Goals > Account & Cloud first');
+ const r=await fetch(`/api/garmin?action=${action}&start=${start}&end=${end}`,{headers:{Authorization:'Bearer '+token}});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok)throw Error(d.error||'Garmin sync failed ('+r.status+')');
+ return d;
+}
+async function garminSync(){
+ if(syncing)return;syncing=true;draw();toast('Syncing Garmin…');
+ try{
+  const end=todayKey(),start=dateAdd(end,-14);
+  const acts=await garminApi('activities',start,end);
+  const rec=await garminApi('recovery',start,end).catch(e=>({days:{},errors:[e.message]}));
+  const known=new Set();Object.values(state.days).forEach(d=>(d.workouts||[]).forEach(a=>{if(a.garminId)known.add(a.garminId)}));
+  const fresh=(acts.activities||[]).filter(g=>g.isRun&&g.date&&g.miles>0&&g.minutes>0&&!known.has(g.id)).sort((a,b)=>a.date.localeCompare(b.date));
+  let added=0,linked=0,merged=0;
+  const ok=commitActivity(()=>{
+   fresh.forEach(g=>{
+    const logged=day(g.date).workouts;
+    const same=logged.find(a=>a.type==='run'&&!a.garminId&&Math.abs((a.distanceMi||0)-g.miles)<0.15);
+    if(same){same.garminId=g.id;if(g.avgHr)same.avgHr=Math.round(g.avgHr);merged++;return}
+    const cands=R().workouts.filter(w=>w.date===g.date&&w.kind!=='strength'&&!['completed','skipped'].includes(w.status)&&!w.activityId);
+    const pool=planView==='both'?cands:cands.filter(w=>planOf(w)===planView);
+    const match=pool.length===1?pool[0]:null;
+    const mi=Math.round(g.miles*100)/100;
+    const a={id:uid(),type:'run',desc:`${mi} mi · ${g.name||'Garmin run'}`,distanceMi:mi,mins:Math.round(g.minutes),cal:Math.round(g.calories)||runBurn(mi,'run'),garminId:g.id,source:'garmin'};
+    if(g.avgHr)a.avgHr=Math.round(g.avgHr);
+    if(match){a.plannedWorkoutId=match.id;match.activityId=a.id;match.status='completed';linked++}
+    logged.push(a);added++;
+   });
+   const store=G();Object.assign(store.recovery,rec.days||{});
+   Object.keys(store.recovery).sort().slice(0,-120).forEach(k=>delete store.recovery[k]);
+   store.lastSync=new Date().toISOString();
+  });
+  syncing=false;
+  if(ok){draw();toast(`Garmin: ${added} new run${added===1?'':'s'}${linked?`, ${linked} matched to plan`:''}${merged?`, ${merged} already logged`:''}${rec.errors&&rec.errors.length?' · some recovery data unavailable':''}`)}
+ }catch(e){syncing=false;draw();toast(e.message||'Garmin sync failed')}
+}
+function recoveryPanel(){
+ const rec=G().recovery,dates=Object.keys(rec).sort().reverse().slice(0,7);
+ if(!dates.length)return;
+ const box=document.createElement('section');box.className='run-recovery';heading(box,'Recovery · last '+dates.length+(dates.length===1?' day':' days'),'h3');
+ dates.forEach(d=>{const r=rec[d],bits=[];
+  if(r.sleepHours!=null)bits.push(r.sleepHours+'h sleep'+(r.sleepScore!=null?' ('+r.sleepScore+')':''));
+  if(r.hrv!=null)bits.push('HRV '+Math.round(r.hrv)+(r.hrvStatus?' '+String(r.hrvStatus).toLowerCase():''));
+  if(r.bodyBatteryHigh!=null)bits.push('Battery '+Math.round(r.bodyBatteryLow??0)+'–'+Math.round(r.bodyBatteryHigh));
+  if(bits.length)heading(box,new Date(d+'T12:00:00').toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})+' · '+bits.join(' · '),'p')});
+ panel.append(box);
 }
 const dlg=document.createElement('dialog');dlg.className='run-dialog';document.body.append(dlg);
 function modal(title){dlg.replaceChildren();dlg.append(button('Close',()=>dlg.close(),'run-close'));heading(dlg,title,'h2');if(!dlg.open)dlg.showModal();return dlg}
