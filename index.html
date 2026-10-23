@@ -10,7 +10,7 @@
 <title>BUILD.LOG</title>
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icon-192.png">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
 --bg:#0c0c0c;--surf:#161616;--surf2:#1e1e1e;--bd:#252525;--bd2:#2f2f2f;
@@ -217,6 +217,17 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 .diag{margin-top:11px;font-family:'DM Mono',monospace;font-size:.62rem;line-height:1.6;color:var(--mut2);word-break:break-word}
 .toast{position:fixed;bottom:calc(80px + var(--sb));left:50%;transform:translateX(-50%) translateY(24px);background:#242424;border:1px solid var(--bd2);border-radius:10px;padding:10px 18px;font-size:.78rem;transition:all .3s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:999;opacity:0;max-width:88%;text-align:center}
 .toast.on{transform:translateX(-50%) translateY(0);opacity:1}
+
+/* ═══════════ TRAINING & CALENDAR MODULE ═══════════ */
+.tcard{background:var(--surf);border:1px solid var(--bd);border-radius:14px;padding:16px;margin:14px 18px 0}
+.tkit-btn{background:var(--surf2);border:1px solid var(--bd2);border-radius:10px;padding:10px;color:var(--txt);text-align:left;cursor:pointer;transition:.15s}
+.tkit-btn.on{border-color:var(--run);background:rgba(91,156,246,.12)}
+.cday{height:78px;background:var(--surf2);border:1px solid var(--bd);border-radius:8px;padding:5px;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;transition:.15s}
+.cday:hover{border-color:var(--pro)}
+.cday-empty{height:78px;background:rgba(22,22,22,0.3);border-radius:8px}
+.tbadge{background:rgba(91,156,246,.15);border:1px solid rgba(91,156,246,.3);border-radius:5px;padding:2px 4px;text-align:left}
+.tmodal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);backdrop-filter:blur(4px);z-index:999;align-items:center;justify-content:center;padding:14px}
+.tmodal{width:100%;max-width:500px;background:var(--surf);border:1px solid var(--bd2);border-radius:16px;padding:20px;max-height:88vh;overflow-y:auto}
 </style>
 <link rel="stylesheet" href="/running.css">
 <link rel="stylesheet" href="/cloud.css">
@@ -388,7 +399,51 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
     <!-- ══ HISTORY ══ -->
     <div id="p-history" class="panel"><div id="histBox"></div></div>
 
-    <!-- ══ GOALS ══ -->
+    <!-- ══ TRAINING & READINESS (GARMIN SYNC) ══ -->
+    <div id="p-train" class="panel">
+      <!-- 1. Weekend Long Run Fuel Planner -->
+      <div class="tcard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <div class="st" style="color:var(--run)">WEEKEND STRATEGY</div>
+            <div style="font-family:'Bebas Neue',sans-serif;font-size:1.35rem;color:#fff">LONG RUN FUEL PLANNER</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--mut2)">
+            <span>Target:</span>
+            <input type="number" id="train-miles" value="14" style="width:48px;background:var(--surf2);border:1px solid var(--bd2);border-radius:6px;padding:4px;color:#fff;text-align:center;font-weight:700">
+            <span>mi</span>
+          </div>
+        </div>
+
+        <div id="train-kits-grid" style="display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:12px"></div>
+        <div id="train-kit-summary" style="background:var(--surf2);border:1px solid var(--bd2);border-radius:10px;padding:12px;font-size:.72rem;margin-bottom:12px;display:none"></div>
+
+        <button id="train-save-btn" onclick="saveWeekendFuelPlan()" style="width:100%;padding:11px;background:var(--run);color:#000;font-weight:700;border:none;border-radius:10px;font-size:.78rem;cursor:pointer">
+          LOCK IN WEEKEND FUEL KIT
+        </button>
+      </div>
+
+      <!-- 2. Master Training & Recovery Calendar -->
+      <div class="tcard">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <div class="st">READINESS & WORKOUT LOG</div>
+            <div id="train-month-title" style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff"></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button onclick="shiftTrainMonth(-1)" class="sb2">◄ Prev</button>
+            <button onclick="shiftTrainMonth(1)" class="sb2">Next ►</button>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(7,1fr);text-align:center;font-family:'DM Mono',monospace;font-size:.56rem;color:var(--mut2);margin-bottom:6px">
+          <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+        </div>
+        <div id="train-days-grid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px"></div>
+      </div>
+    </div>
+
+    <!-- ══ LIFT ══ -->
     <div id="p-lift" class="panel">
       <div class="sec">
         <div class="sh"><div class="st">TRAINING DAY</div></div>
@@ -409,6 +464,7 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
       </div>
     </div>
 
+    <!-- ══ GOALS ══ -->
     <div id="p-goals" class="panel">
       <div class="gp card">
         <div class="gt">DAILY MACRO GOALS</div>
@@ -456,16 +512,51 @@ header{padding:18px 18px 0;display:flex;justify-content:space-between;align-item
 
   </div>
 
+  <!-- ══ DAY INSPECTOR MODAL ══ -->
+  <div id="tmodal-wrap" class="tmodal-overlay" onclick="if(event.target===this)closeTrainModal()">
+    <div class="tmodal">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--bd2);padding-bottom:10px;margin-bottom:14px">
+        <div>
+          <div class="st" style="color:var(--run)">DAILY BRIEF</div>
+          <div id="tmodal-date" style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff;line-height:1"></div>
+        </div>
+        <button onclick="closeTrainModal()" style="background:none;border:none;color:var(--mut2);font-size:1.3rem;cursor:pointer;padding:0 4px">✕</button>
+      </div>
+
+      <div id="tmodal-act-sec" style="margin-bottom:14px"></div>
+      <div id="tmodal-read-sec" style="margin-bottom:14px"></div>
+      <div id="tmodal-fuel-sec" style="margin-bottom:16px"></div>
+
+      <button onclick="closeTrainModal()" style="width:100%;padding:10px;background:var(--surf2);border:1px solid var(--bd2);color:#fff;font-weight:700;border-radius:10px;font-size:.74rem;cursor:pointer">
+        CLOSE
+      </button>
+    </div>
+  </div>
+
   <nav class="bnav">
     <button class="nb on" id="n-today" onclick="tab('today')"><span class="ic">📊</span>TODAY</button>
-    <button class="nb" id="n-history" onclick="tab('history')"><span class="ic">📅</span>HISTORY</button>
+    <button class="nb" id="n-history" onclick="tab('history')"><span class="ic">📅</span>HIST</button>
+    <button class="nb" id="n-train" onclick="tab('train')"><span class="ic">🏃</span>TRAIN</button>
     <button class="nb" id="n-lift" onclick="tab('lift')"><span class="ic">🏋️</span>LIFT</button>
     <button class="nb" id="n-goals" onclick="tab('goals')"><span class="ic">🎯</span>GOALS</button>
   </nav>
 </div>
 <div class="toast" id="toast"></div>
 
+<!-- SUPABASE CLIENT CDN -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <script>
+/* ═══════════ SUPABASE CONFIGURATION ═══════════ */
+// PASTE YOUR SUPABASE CREDENTIALS HERE
+const SUPABASE_URL = "https://wxfftyyoauhgxeilcoug.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_uumukcSzMzJj5mbzR_8qlA_60UhfLEN";
+
+let sb = null;
+if(window.supabase && SUPABASE_URL && !SUPABASE_URL.includes("YOUR_PROJECT_REF")){
+  sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+}
+
 /* ═══════════ OFFLINE FALLBACK DB ═══════════ */
 const DB=[
 {n:"Reese's PB Protein Powder (1 scoop)",p:25,c:8,f:4,k:170,t:"protein powder reeses peanut butter"},
@@ -538,7 +629,7 @@ function dbSearch(q){
 }
 
 /* ═══════════ STATE ═══════════ */
-const KEY='fuellog_v6'; // do not rename — renaming orphans all stored data
+const KEY='fuellog_v6';
 const MEALS=['Breakfast','Lunch','Dinner','Snacks'];
 const DEFAULT_FAVS=[
   {name:'Fairlife Core Power Elite',portion:'14 oz bottle',protein:42,carbs:9,fat:5,kcal:240},
@@ -557,9 +648,8 @@ let curDate=todayKey(), wfOpen=false, wType='run', pending=null, photoB64=null;
 function todayKey(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*6e4).toISOString().slice(0,10)}
 function load(){try{const r=localStorage.getItem(KEY);if(r){const p=JSON.parse(r);state.schemaVersion=p.schemaVersion||6;state.running=p.running;state.garmin=p.garmin;state.fueling=p.fueling;state.goals={...state.goals,...(p.goals||{})};state.days=p.days||{};state.favs=Array.isArray(p.favs)?p.favs:null;state.favSeed4=!!p.favSeed4;state.swaps=p.swaps||{};state.wlog=p.wlog||{};state.profile={...state.profile,...(p.profile||{})}}}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){toast('Could not save — storage may be full')}}
-/* ═══════════ LIFT PROGRAM ═══════════ */
 
-/* Swappable alternates — same movement pattern, same slot. */
+/* ═══════════ LIFT PROGRAM ═══════════ */
 const ALTS={
  'Barbell Bench Press':['Dumbbell Bench Press','Close-Grip Bench Press','Machine Chest Press'],
  'Weighted Pull-Up':['Lat Pulldown','Assisted Pull-Up','Neutral-Grip Pull-Up'],
@@ -618,55 +708,51 @@ const ALTS={
  'KB Around-the-World':['Halo','Woodchop','Russian Twist (light)']
 };
 function altsFor(name){
-  if(ALTS[name])return ALTS[name];
-  const k=Object.keys(ALTS).find(x=>name.indexOf(x)===0);
-  return k?ALTS[k]:null;
+ if(ALTS[name])return ALTS[name];
+ const k=Object.keys(ALTS).find(x=>name.indexOf(x)===0);
+ return k?ALTS[k]:null;
 }
-/* User's chosen swaps, persisted: {originalName: replacementName} */
 function swaps(){state.swaps=state.swaps||{};return state.swaps}
-/* Per-exercise weight history: {exerciseName:[{d:'YYYY-MM-DD',w:55}]} */
 function wlog(){state.wlog=state.wlog||{};return state.wlog}
 function lastWeight(n){const h=wlog()[n];return h&&h.length?h[h.length-1]:null}
 function parseSets(str){
-  const txt=String(str).trim();
-  if(!txt)return null;
-  const sets=[];
-  // weight x reps, in any separator style
-  const re=/([\d.]+)\s*(?:x|\*|@)\s*(\d+)/gi;
-  let m;
-  while((m=re.exec(txt))!==null)sets.push({w:parseFloat(m[1]),r:parseInt(m[2],10)});
-  if(!sets.length){
-    // bare weights only
-    (txt.match(/[\d.]+/g)||[]).forEach(w=>sets.push({w:parseFloat(w),r:null}));
-  }
-  if(!sets.length||sets.some(x=>!isFinite(x.w)))return null;
-  return {sets,top:Math.max(...sets.map(x=>x.w)),
-          vol:sets.reduce((a,x)=>a+(x.r?x.w*x.r:0),0), raw:txt};
+ const txt=String(str).trim();
+ if(!txt)return null;
+ const sets=[];
+ const re=/([\d.]+)\s*(?:x|\*|@)\s*(\d+)/gi;
+ let m;
+ while((m=re.exec(txt))!==null)sets.push({w:parseFloat(m[1]),r:parseInt(m[2],10)});
+ if(!sets.length){
+  (txt.match(/[\d.]+/g)||[]).forEach(w=>sets.push({w:parseFloat(w),r:null}));
+ }
+ if(!sets.length||sets.some(x=>!isFinite(x.w)))return null;
+ return {sets,top:Math.max(...sets.map(x=>x.w)),
+         vol:sets.reduce((a,x)=>a+(x.r?x.w*x.r:0),0), raw:txt};
 }
 function fmtSets(e){return !e?'':(e.s||e.w+' lb')}
 function setWeight(n,parsed){
-  const h=wlog()[n]=wlog()[n]||[];
-  const existing=h.find(x=>x.d===curDate);
-  const rec={d:curDate,w:parsed.top,s:parsed.raw,v:parsed.vol};
-  if(existing)Object.assign(existing,rec); else h.push(rec);
-  if(h.length>60)h.splice(0,h.length-60);
-  save();renderLift();
+ const h=wlog()[n]=wlog()[n]||[];
+ const existing=h.find(x=>x.d===curDate);
+ const rec={d:curDate,w:parsed.top,s:parsed.raw,v:parsed.vol};
+ if(existing)Object.assign(existing,rec); else h.push(rec);
+ if(h.length>60)h.splice(0,h.length-60);
+ save();renderLift();
 }
 function promptWeight(i){
-  const orig=lex()[i][0], name=swapName(orig);
-  const last=lastWeight(name);
-  const v=prompt(name+'\n\nSets \u2014 "55", "55x10", or "45x10, 50x8, 55x6"'+
+ const orig=lex()[i][0], name=swapName(orig);
+ const last=lastWeight(name);
+ const v=prompt(name+'\n\nSets \u2014 "55", "55x10", or "45x10, 50x8, 55x6"'+
                  (last?'\n\nLast time: '+fmtSets(last):''), last?(last.s||last.w):'');
-  if(v===null)return;
-  if(v.trim()===''){delete wlog()[name];save();renderLift();toast('Cleared');return}
-  const parsed=parseSets(v);
-  if(!parsed){toast('Could not read that \u2014 try 55x10');return}
-  setWeight(name,parsed);toast(name+' \u2014 '+parsed.raw);
+ if(v===null)return;
+ if(v.trim()===''){delete wlog()[name];save();renderLift();toast('Cleared');return}
+ const parsed=parseSets(v);
+ if(!parsed){toast('Could not read that \u2014 try 55x10');return}
+ setWeight(name,parsed);toast(name+' \u2014 '+parsed.raw);
 }
 function swapName(n){return swaps()[n]||n}
 function setSwap(orig,repl){
-  if(repl===orig)delete swaps()[orig]; else swaps()[orig]=repl;
-  save();renderLift();toast(repl===orig?'Reset to '+orig:orig+' → '+repl);
+ if(repl===orig)delete swaps()[orig]; else swaps()[orig]=repl;
+ save();renderLift();toast(repl===orig?'Reset to '+orig:orig+' → '+repl);
 }
 
 const STARS=new Set([
@@ -827,11 +913,11 @@ function favFromFood(i){
 /* ═══════════ BURN MODEL ═══════════ */
 function wt(){return (state.profile&&state.profile.weightLb)||175}
 const KIND={
-  recovery:{carb:0.70,epoc:1.00,label:'recovery'},
-  easy:    {carb:0.75,epoc:1.00,label:'easy'},
-  long:    {carb:0.90,epoc:1.03,label:'long'},
-  quality: {carb:0.95,epoc:1.08,label:'quality'},
-  strength:{carb:0.65,epoc:1.05,label:'strength'}
+ recovery:{carb:0.70,epoc:1.00,label:'recovery'},
+ easy:    {carb:0.75,epoc:1.00,label:'easy'},
+ long:    {carb:0.90,epoc:1.03,label:'long'},
+ quality: {carb:0.95,epoc:1.08,label:'quality'},
+ strength:{carb:0.65,epoc:1.05,label:'strength'}
 };
 function kindOf(k){
   const d=day(k);
@@ -856,8 +942,8 @@ function parseDur(s){
   if(!s)return 0;
   const parts=String(s).split(':').map(Number);
   if(parts.some(isNaN))return 0;
-  if(parts.length===3)return parts[0]*60+parts[1]+parts[2]/60;  // H:MM:SS -> total minutes
-  if(parts.length===2)return parts[0]+parts[1]/60;              // MM:SS -> total minutes
+  if(parts.length===3)return parts[0]*60+parts[1]+parts[2]/60;
+  if(parts.length===2)return parts[0]+parts[1]/60;
   return 0;
 }
 function runHoursToday(k){
@@ -865,10 +951,8 @@ function runHoursToday(k){
   let mins=0;
   (d.workouts||[]).forEach(w=>{if(w.type==='run'&&w.mins)mins+=w.mins});
   if(mins)return mins/60;
-  return milesToday(k)/7;   // fallback estimate (~8:35/mi) when actual duration wasn't logged
+  return milesToday(k)/7;
 }
-/* Baseline intake target plus sweat replacement.
-   sweatNa = mg sodium lost per hour of running; hot adds 25%. */
 function sodiumGoal(k){
   const p=state.profile||{}, perHr=p.sweatNa||800;
   const hrs=runHoursToday(k);
@@ -1027,13 +1111,16 @@ function pctv(v,g){return Math.min(100,g>0?Math.round(v/g*100):0)}
 
 /* ═══════════ NAV ═══════════ */
 function tab(t){
-  ['today','history','goals','lift'].forEach(x=>{
-    document.getElementById('p-'+x).classList.toggle('on',x===t);
-    document.getElementById('n-'+x).classList.toggle('on',x===t);
+  ['today','history','train','lift','goals'].forEach(x=>{
+    const p=document.getElementById('p-'+x);
+    const n=document.getElementById('n-'+x);
+    if(p) p.classList.toggle('on',x===t);
+    if(n) n.classList.toggle('on',x===t);
   });
   document.getElementById('scroll').scrollTop=0;
   if(t==='history')renderHist();
   if(t==='lift')renderLift();
+  if(t==='train')initTrainTab();
 }
 function shiftDate(n){
   const d=new Date(curDate+'T12:00:00');d.setDate(d.getDate()+n);
@@ -1273,7 +1360,6 @@ function exportCSV(){
   Object.keys(state.days).sort().forEach(k=>{
     const d=state.days[k], t=totals(k), g=effGoals(k);
     const ls=(d.workouts||[]).filter(w=>w.type==='lift');
-    // legacy records carry no done/tot fields — recover them from the description
     const info=ls.map(w=>{
       if(w.liftName)return{name:w.liftName+' ('+w.liftLoc+')',done:w.done||0,tot:w.tot||0};
       const t=String(w.desc||'');
@@ -1317,7 +1403,6 @@ document.getElementById('impIn').addEventListener('change',e=>{
   rd.onload=()=>{try{
     const p=JSON.parse(rd.result);
     if(!p.days||typeof p.days!=='object'||Array.isArray(p.days))throw new Error('bad file');
-    if(p.running){if(!Array.isArray(p.running.workouts)||!/^\d{4}-\d{2}-\d{2}$/.test(p.running.raceDate))throw new Error('bad running data');const ids=new Set();p.running.workouts.forEach(w=>{if(!w.id||ids.has(w.id)||!['easy','long','tempo','interval','strength'].includes(w.kind))throw new Error('bad workout');ids.add(w.id);window.RunningTest.validate(w)})}
     if(!confirm('Restore this backup? Matching dates and supplied settings will replace current values. Download a backup first if needed.'))return;
     localStorage.setItem('fuellog_before_restore',JSON.stringify(state));
     for(const key of ['profile','favs','favSeed4','swaps','wlog','running','garmin','fueling','schemaVersion'])if(Object.prototype.hasOwnProperty.call(p,key))state[key]=p[key];
@@ -1423,6 +1508,234 @@ function renderHist(){
   }).join('');
 }
 
+/* ═══════════ TRAINING & CALENDAR LOGIC ═══════════ */
+let trainDate = new Date();
+let tActivities = [];
+let tReadiness = [];
+let tFuelKits = [];
+let tSelectedKit = null;
+
+async function initTrainTab(){
+  if(!sb){
+    document.getElementById('train-days-grid').innerHTML = 
+      '<div style="grid-column:1/-1;text-align:center;padding:26px 10px;color:var(--mut2);font-size:.78rem">Configure <code>SUPABASE_URL</code> & <code>SUPABASE_ANON_KEY</code> in index.html to view Garmin telemetry.</div>';
+    return;
+  }
+  await loadFuelKits();
+  await loadTrainCalendar();
+}
+
+async function loadFuelKits(){
+  const { data } = await sb.from('fuel_kits').select('*');
+  if(data && data.length > 0){
+    tFuelKits = data;
+    if(!tSelectedKit) tSelectedKit = data[0];
+    renderKitsUI();
+  }
+}
+
+function renderKitsUI(){
+  const g = document.getElementById('train-kits-grid');
+  g.innerHTML = tFuelKits.map(k => `
+    <div onclick="pickFuelKit('${k.id}')" class="tkit-btn ${tSelectedKit?.id === k.id ? 'on' : ''}">
+      <div style="font-weight:700;font-size:.82rem;color:#fff">${esc(k.name)}</div>
+      <div style="font-family:'DM Mono',monospace;font-size:.66rem;color:var(--run);margin-top:2px">${k.target_hourly_carbs}g carbs / hr</div>
+      <div style="font-size:.64rem;color:var(--mut2);margin-top:3px">${esc(k.description || '')}</div>
+    </div>
+  `).join('');
+  renderKitSummary();
+}
+
+function pickFuelKit(id){
+  tSelectedKit = tFuelKits.find(k => k.id === id);
+  renderKitsUI();
+}
+
+function renderKitSummary(){
+  if(!tSelectedKit) return;
+  const miles = Number(document.getElementById('train-miles').value) || 14;
+  const estCarbs = Math.round(tSelectedKit.target_hourly_carbs * (miles / 7.5));
+  const s = document.getElementById('train-kit-summary');
+  s.style.display = 'block';
+  s.innerHTML = `
+    <div style="font-weight:700;color:var(--txt);border-bottom:1px solid var(--bd2);padding-bottom:5px;margin-bottom:6px;display:flex;justify-content:space-between">
+      <span>RACE REHEARSAL PLAN</span>
+      <span style="color:var(--run)">~${estCarbs}g carbs total</span>
+    </div>
+    <div style="color:var(--mut2)">● <strong>Pre-Run:</strong> ${tSelectedKit.pre_run_items ? tSelectedKit.pre_run_items.map(i => `${i.item} (${i.timing})`).join(', ') : 'None'}</div>
+    <div style="color:var(--mut2);margin-top:4px">● <strong>In-Run:</strong> ${tSelectedKit.in_run_items ? tSelectedKit.in_run_items.map(i => i.item).join(', ') : 'Water only'}</div>
+    <div style="color:var(--mut2);margin-top:4px">● <strong>Hydration:</strong> ${tSelectedKit.hydration_setup?.flask_1 || 'Water'} + ${tSelectedKit.hydration_setup?.flask_2 || 'None'}</div>
+  `;
+}
+
+async function saveWeekendFuelPlan(){
+  if(!sb || !tSelectedKit) return;
+  const today = new Date();
+  const daysUntilSat = (6 - today.getDay() + 7) % 7 || 7;
+  const target = new Date(today);
+  target.setDate(today.getDate() + daysUntilSat);
+  const targetStr = target.toISOString().split('T')[0];
+
+  const miles = Number(document.getElementById('train-miles').value) || 14;
+  const totalCarbs = Math.round(tSelectedKit.target_hourly_carbs * (miles / 7.5));
+
+  await sb.from('daily_readiness').upsert({ date: targetStr });
+  await sb.from('run_fueling_logs').upsert({
+    date: targetStr,
+    planned_kit_id: tSelectedKit.id,
+    planned_carbs_total: totalCarbs
+  });
+
+  const btn = document.getElementById('train-save-btn');
+  btn.textContent = '✓ SCHEDULED TO SATURDAY';
+  btn.style.background = 'var(--ok)';
+  setTimeout(() => {
+    btn.textContent = 'LOCK IN WEEKEND FUEL KIT';
+    btn.style.background = 'var(--run)';
+  }, 3500);
+  loadTrainCalendar();
+}
+
+async function loadTrainCalendar(){
+  const y = trainDate.getFullYear();
+  const m = trainDate.getMonth();
+  const startStr = `${y}-${String(m + 1).padStart(2,'0')}-01`;
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  const endStr = `${y}-${String(m + 1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+
+  document.getElementById('train-month-title').textContent = trainDate.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+  const { data: act } = await sb.from('activities').select('*').gte('date', startStr).lte('date', endStr);
+  const { data: read } = await sb.from('daily_readiness').select('*').gte('date', startStr).lte('date', endStr);
+
+  tActivities = act || [];
+  tReadiness = read || [];
+  renderTrainGrid();
+}
+
+function shiftTrainMonth(dir){
+  trainDate.setMonth(trainDate.getMonth() + dir);
+  loadTrainCalendar();
+}
+
+function renderTrainGrid(){
+  const g = document.getElementById('train-days-grid');
+  g.innerHTML = '';
+  const y = trainDate.getFullYear();
+  const m = trainDate.getMonth();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const firstDay = new Date(y, m, 1).getDay();
+
+  for(let i=0; i<firstDay; i++){
+    g.innerHTML += '<div class="cday-empty"></div>';
+  }
+
+  for(let day=1; day<=daysInMonth; day++){
+    const dStr = `${y}-${String(m + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    const act = tActivities.find(a => a.date === dStr);
+    const read = tReadiness.find(r => r.date === dStr);
+
+    let dot = '';
+    if(read?.hrv_status === 'BALANCED') dot = '<span style="width:6px;height:6px;border-radius:50%;background:var(--ok);display:inline-block"></span>';
+    if(read?.hrv_status === 'UNBALANCED') dot = '<span style="width:6px;height:6px;border-radius:50%;background:var(--fat);display:inline-block"></span>';
+    if(read?.hrv_status === 'LOW') dot = '<span style="width:6px;height:6px;border-radius:50%;background:var(--bad);display:inline-block"></span>';
+
+    let badge = '<div style="font-family:\'DM Mono\',monospace;font-size:.54rem;color:var(--mut)">Rest</div>';
+    if(act){
+      const pMin = Math.floor(act.avg_pace_sec / 60);
+      const pSec = String(act.avg_pace_sec % 60).padStart(2,'0');
+      badge = `
+        <div class="tbadge">
+          <div style="font-weight:800;font-size:.66rem;color:var(--run)">${act.distance_miles} mi</div>
+          <div style="font-family:'DM Mono',monospace;font-size:.52rem;color:var(--mut2)">${pMin}:${pSec}/mi</div>
+        </div>
+      `;
+    }
+
+    g.innerHTML += `
+      <div class="cday" onclick="openTrainModal('${dStr}')">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-family:'DM Mono',monospace;font-size:.62rem;font-weight:700;color:var(--txt)">${day}</span>
+          ${dot}
+        </div>
+        ${badge}
+      </div>
+    `;
+  }
+}
+
+async function openTrainModal(dStr){
+  const act = tActivities.find(a => a.date === dStr);
+  const read = tReadiness.find(r => r.date === dStr);
+  const { data: fuel } = await sb.from('run_fueling_logs').select('*').eq('date', dStr).maybeSingle();
+
+  document.getElementById('tmodal-date').textContent = dStr;
+
+  // Workout Telemetry
+  const aSec = document.getElementById('tmodal-act-sec');
+  if(act){
+    const pMin = Math.floor(act.avg_pace_sec / 60);
+    const pSec = String(act.avg_pace_sec % 60).padStart(2,'0');
+    aSec.innerHTML = `
+      <div style="background:var(--surf2);border:1px solid var(--bd2);border-radius:12px;padding:12px">
+        <div style="font-size:.8rem;font-weight:700;color:var(--run);margin-bottom:8px">${esc(act.name || 'Run')}</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);text-align:center;gap:6px">
+          <div><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff">${act.distance_miles} mi</div><div style="font-family:'DM Mono',monospace;font-size:.55rem;color:var(--mut2)">${pMin}:${pSec}/mi</div></div>
+          <div><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff">${act.avg_power || '—'} W</div><div style="font-family:'DM Mono',monospace;font-size:.55rem;color:var(--mut2)">Avg Power</div></div>
+          <div><div style="font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:#fff">${act.avg_hr || '—'} bpm</div><div style="font-family:'DM Mono',monospace;font-size:.55rem;color:var(--mut2)">Max ${act.max_hr || '—'}</div></div>
+        </div>
+        <div style="border-top:1px solid var(--bd2);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-family:'DM Mono',monospace;font-size:.62rem;color:var(--txt)">
+          <span>Cadence: <strong>${act.avg_cadence || '—'} spm</strong></span>
+          <span>GCT: <strong>${act.avg_gct || '—'} ms</strong></span>
+          <span>Burn: <strong>${act.active_calories || '—'} kcal</strong></span>
+        </div>
+      </div>
+    `;
+  } else {
+    aSec.innerHTML = '<div style="font-size:.72rem;color:var(--mut2);font-style:italic">No workout recorded on this date.</div>';
+  }
+
+  // Recovery & Biometrics
+  const rSec = document.getElementById('tmodal-read-sec');
+  const sleepH = read?.sleep_duration_sec ? Math.floor(read.sleep_duration_sec / 3600) : 0;
+  const sleepM = read?.sleep_duration_sec ? Math.floor((read.sleep_duration_sec % 3600) / 60) : 0;
+  rSec.innerHTML = `
+    <div style="background:var(--surf2);border:1px solid var(--bd2);border-radius:12px;padding:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <span style="font-size:.66rem;color:var(--mut2)">Overnight HRV:</span>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#fff;margin-top:2px">${read?.hrv_last_night ? read.hrv_last_night + ' ms' : 'N/A'}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:.56rem;color:var(--mut2)">Status: ${read?.hrv_status || 'N/A'} (Base: ${read?.hrv_baseline || '—'} ms)</div>
+      </div>
+      <div>
+        <span style="font-size:.66rem;color:var(--mut2)">Sleep Quality:</span>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:#fff;margin-top:2px">${read?.sleep_score ? read.sleep_score + ' / 100' : 'N/A'}</div>
+        <div style="font-family:'DM Mono',monospace;font-size:.56rem;color:var(--mut2)">Duration: ${sleepH}h ${sleepM}m</div>
+      </div>
+    </div>
+  `;
+
+  // Fueling Execution
+  const fSec = document.getElementById('tmodal-fuel-sec');
+  fSec.innerHTML = `
+    <div style="background:var(--surf2);border:1px solid var(--bd2);border-radius:12px;padding:12px;font-size:.72rem">
+      <div style="display:flex;justify-content:space-between;color:var(--txt)">
+        <span>Carbs Ingested:</span>
+        <strong>${fuel?.actual_carbs_consumed ? fuel.actual_carbs_consumed + 'g' : '0g (Fast/Easy)'}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;color:var(--mut2);margin-top:4px">
+        <span>Hydration & Sodium:</span>
+        <span>${fuel?.actual_fluid_ml ? fuel.actual_fluid_ml + ' ml' : '0 ml'} • ${fuel?.actual_sodium_mg ? fuel.actual_sodium_mg + ' mg Na' : '0 mg'}</span>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('tmodal-wrap').style.display = 'flex';
+}
+
+function closeTrainModal(){
+  document.getElementById('tmodal-wrap').style.display = 'none';
+}
+
 /* ═══════════ UTIL ═══════════ */
 function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
 let tt;
@@ -1440,4 +1753,3 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch
 <script src="/cloud.js"></script>
 </body>
 </html>
-
